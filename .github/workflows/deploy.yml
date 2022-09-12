@@ -11,7 +11,7 @@ jobs:
         with:
           run: |
             cd paper
-            make          
+            pdflatex ms.tex          
       - name: Move file to site 🚚
         run: |
           mkdir output/
