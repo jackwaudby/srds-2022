@@ -1,0 +1,563 @@
+\section{Analytical Models for Epoch-Based Commit}
+\label{sec:epoch-based-commit}
+
+\subsection{Protocol Description}
+\label{subsec:ebc-description}
+
+To keep the paper self-contained, we briefly describe the protocol before presenting analytical solutions. 
+%for estimating protocol  performance.
+For greater details on the protocol, readers are referred to~\cite{lu}.
+
+Consider a distributed system consisting of a \emph{coordinator} node and $N, N>1$ \emph{participant} nodes that are simply called \emph{nodes}. A large OLTP database is partitioned among the latter which execute transactions and 2PC under the control of the coordinator. A (participant) node can fail in a \emph{fail-stop} manner: it functions correctly when operative and fails only by ceasing to be operative. The coordinator, however, is assumed to be built reliably and never fails.
+More precisely, we assume that the coordinator is internally replicated (primary-backup or state machine replication using atomic broadcast such as \cite{ongaro} or~\cite{lamport}), maintaining a single server abstraction.  
+% More precisely, assumed within the coordinator are some form of replication, e.g., primary-backup or state machine replication using atomic broadcast such as \cite{ongaro} or~\cite{lamport}, and a single server abstraction.
+
+The coordinator starts a \textit{cycle} by starting an epoch timer for an interval of $a$ and instructs the nodes to work on transactions. The epoch is referred to as \emph{work} interval in~\Cref{fig:ebc} during which transactions are executed but not made durable and their results also not released to end-users. A transaction will release the locks it holds at the end of its execution even though it is not committed. This reduces lock contention but makes the effects of earlier transactions visible to the later ones. This is not a concern as all transactions of a given work interval commit or abort together at the end. 
+
+At the end of epoch timer $a$, the coordinator calls for an execution of 2PC which, as shown in ~\Cref{fig:ebc}, has two phases: \emph{prepare} and \emph{commit}.
+In prepare phase, coordinator sends a \texttt{Prepare}
+message
+%\footnote{Message types are indicated using monospaced font.} 
+to each
+participant node. (Messages exchanged during 2PC are shown by blue arrows in  \Cref{fig:ebc}.)
+
+When a node receives \texttt{Prepare}, it force-logs:
+(i)  ids of all ready-to-commit transactions it executed,
+and (ii) current epoch number. (These durable writes by participants are indicated in \Cref{fig:ebc} by red squares labelled A.)
+It then responds with
+\texttt{Prepare-Ack} to the coordinator.
+% It is expected that the underlying concurrency control protocol has durably logged the
+% individual writes by the ready-to-commit transactions \emph{before} the prepared write
+% record is logged.  before  
+% Note, some transactions executed within the epoch may have aborted earlier due to
+% conflicts and violation of application-level integrity constraints.
+% These aborted transactions do not cause the whole epoch to fail,
+% but the result of them is still not released until the epoch terminates.
+
+In the commit phase, the coordinator collects responses from participant nodes.
+If any node has not replied with a \texttt{Prepare-Ack} message,
+\emph{all} nodes are instructed to abort all transactions they executed during the work interval.
+Else, the coordinator force-logs a \emph{commit} record with the current epoch number (shown as a red square labelled B in \Cref{fig:ebc}) and sends \texttt{Commit} message to all participant nodes.
+When a node receives \texttt{Commit} message, it commits the transactions it executed and releases the results to clients. It then sends \texttt{Commit-Ack} to coordinator and awaits the latter to start the next cycle of work and 2PC intervals.
+
+%\subsection{Fault Tolerance}
+%\label{sec:ebc-fault-tolerance}
+
+%The protocol assumes a \emph{fail-stop} failure model in which a node is either
+%operational or crashed.
+%Moreover, it is assumed that any operational node in the database can detect a crashed
+%node.
+%Additionally, it is assumed the epoch coordinator does not fail.
+%The termination protocol used when a crashed participant node recovers is to contact
+%the epoch coordinator to learn the outcome of the crashed node's %latest epoch.
+%
+%Failures are detected at the granularity of epochs, with all transactions within an epoch
+%being aborted and re-executed when a failure event occurs.
+%\Cref{fig:ebc} displays nine failure scenarios:
+%before the epoch coordinator sends \texttt{Prepare} messages (1),
+%after some participant nodes receive \texttt{Prepare} messages (2),
+%after all participant nodes receive \texttt{Prepare} messages (3),
+%before the epoch coordinator receives all \texttt{Prepare-Ack} messages (4),
+%after the epoch coordinator force logs the commit record (5),
+%after some participant nodes receive \texttt{Commit} messages (6),
+%before the epoch coordinator receives any \texttt{Commit-Ack} messages (7),
+%after the epoch coordinator receives some \texttt{Commit-Ack} messages (8),
+%and after the epoch coordinator receives all \texttt{Commit-Ack} messages (9).
+%
+%The time when the epoch coordinator force logs the commit record is the logical commit
+%point for an epoch, illustrated by (B)
+%in~\Cref{fig:ebc}.
+%In cases (1) - (4) all transactions within the epoch are aborted.
+%Upon recovery, a failed participant node rollbacks its prepared writes and discards all
+%intermediate results; (9) is equivalent to (1).
+%In cases (5) - (8) transactions from the epoch are considered committed.
+%Upon recovery, each participant node can learn the epoch outcome by contacting the
+%epoch coordinator and then releasing results to clients, as by this
+%point all writes are already durable.
+%A failure causes the database state to be reverted to the state of the last successful
+%epoch, thus it is assumed the database maintains two versions of each tuple:
+%(i) latest value from the current epoch,
+%and (ii) most recent value from the last committed epoch.
+%
+In summary, multiple transactions are executed during the work interval of each cycle; they are committed (or aborted) in a common 2PC execution. The design rationale behind this approach is that
+%node failures are infrequent and 
+the time taken to execute even a distributed transaction is negligibly small compared to the mean time before failure (MTBF) of nodes. So, 
+%the probability of a node failure intervening a transaction execution is very small and 
+the probability of several transactions being executed without encountering any node failure, is fairly high. 
+When the common 2PC execution leads to commit, its overhead per committed transaction becomes very small 
+which, in turn, leads to an increased throughput. 
+
+Several studies \cite{garraghan,wang,birke} analysing node failures in clusters confirm the assumption of 
+MTBF being considerably larger than transaction processing times. For example, Garraghan et. 
+al.~\cite{garraghan} analyse Google Cloud Platform traces and find 5,056 out of 12,532 nodes exhibiting 8,954 
+failure events over a 29 day period. A node's MTBF turns out to be 12.71 hours! Another metric analysed 
+in~\cite{garraghan} is also relevant for our analytical models: the mean time to repair (MTTR) is around 6-30 
+times smaller than MTBF. 
+%That is, the time taken for an operative node to exhibit a failure is long enough to allow several failed nodes to be recovered. 
+%Given that the recovery time is very short compared to the time elapsed between consecutive node failures, 
+So, a failed node is most likely to have recovered well before another failure occurs.  
+%nodes in a cluster to be operational most of the time. So, our analytical models assume at most one node in a cluster to be inoperative at any given time.
+
+%In this section we develop two analytical models.
+%\Cref{sec:maximum-throughput} %presents the model for determining the epoch size that 
+%maximizes throughput.
+%\Cref{sec:av-resp-time} derives the model for locating the epoch size that minimizes the
+%average response time of transactions.
+
+\subsection{Modelling Assumptions}
+\label{sec:model-assumptions}
+
+We make two assumptions in our analytical modelling and derivation of expressions for estimating maximum throughput and average latency.
+
+\noindent \textbf{Assumption 1}: A failed node recovers before another node in the system fails; i.e., between any two consecutive node failures, there is a recovery event of the first failed node.
+
+A common observation in the literature (e.g., \cite{garraghan,wang,birke}) is that MTBF of nodes is much larger compared to their MTTR: a failed node is almost certain to be repaired before the next failure occurs. This near certainty is here assumed to be a certainty for the number of nodes typically found in a distributed OLTP system. Thus, 
+there is at most one failed node in the system at any time.
+
+\noindent \textbf{Assumption 2}: As soon as a node receives \texttt{Prepare} message from the coordinator, it \textit{instantly} completes any ongoing transaction execution and enters the 2PC execution. 
+
+In reality, some non-zero amount of time will elapse for a node to complete its ongoing execution (if any) and then respond with \texttt{Prepare-Ack}.
+This assumption can lead to an overestimation of throughput.
+
+Our simulations do not have these assumptions and therefore will assess the accuracy of the expressions derived.
+
+
+\subsection{Maximum Throughput}
+\label{sec:maximum-throughput}
+
+We derive an analytical expression for estimating maximum attainable throughput by assuming that 
+%each participant 
+a node always has a transaction to execute and is never idle.
+% This expression can also be used for obtaining optimum epoch length. Its derivation will involve two simplifying assumptions. 
+
+A participant node fails at exponentially distributed intervals
+with a low rate, $\xi$.
+The repair times are also distributed exponentially with a higher rate $\eta >>\xi$.
+% , so that a failed node is almost certain to be repaired before the next breakdown.
+% In the model, therefore, we assume that a failed node \emph{always} recovers before another node fails; i.e., between any two consecutive node failures, there is a recovery event of the first failed node.
+Recall that nodes go through cycles, each consisting
+of a \emph{work} interval, $U$, followed by a random 2PC interval $V$ in which 2PC executed. To start with, we will regard $U$ as random (as opposed to being fixed as a constant $a$ as explained earlier).
+Denote the probability density functions of $U$ and $V$ by $f_U(x)$ and
+$f_V(x)$, respectively.
+Let also $f_W(x)$ be the convolution of $f_U(x)$ and $f_V(x)$, i.e., the p.d.f. of the sum
+$U+V$.
+
+During a work interval, transactions are served at rate $N\mu$ (transactions per unit
+time), if all nodes are operative, and at rate $(N-1)\mu$ if one of them has failed.
+%The maximum throughput is reached when operative nodes are never idle, i.e.,
+%when there is never a lack of transactions to serve.
+At the end of a %work and 2PC 
+cycle, either the commit operation completes
+successfully and all transactions executed during the work interval $U$ depart,
+%from the system,
+or a node failure has occurred and all transactions executed during $U$ are aborted and remain in the system for re-execution.
+
+The probability, $\alpha$, that $N$ operative nodes complete one  cycle
+successfully (i.e., with none of them failing), is
+\begin{equation} \label{a}
+\alpha = \int_0^\infty f_W(x)e^{-N\xi x}dx = \tilde{w}(N\xi) = \tilde{u}(N\xi)\tilde{v}(N\xi) \;,
+\end{equation}
+where $\tilde{u}(s)$, $\tilde{v}(s)$ and $\tilde{w}(s)$ are the Laplace transforms
+of $f_U(x)$, $f_V(x)$ and $f_W(x)$, respectively.
+
+
+Consider an interval between two consecutive node failures, to be referred to as the
+\emph{observation period}. (It is indicated for convenience in \Cref{fig:cycles} in Appendix).
+The probability that exactly $m$ consecutive work and 2PC cycles are completed
+successfully during the observation period is
+\begin{equation}
+p_m = \alpha ^m (1-\alpha )\;.
+\end{equation}
+Hence, the average number of successful cycles during that period is
+\begin{equation}
+\bar{m} = \frac{\alpha }{1 -\alpha }\;.
+\end{equation}
+The observation period begins with the repair period of the node that had failed. During that period there are only $N-1$ operative nodes. By analogy
+with (\ref{a}), the probability, $\beta$, that they will complete one work and 2PC cycle
+before the failed node recovers, is
+\begin{equation}
+\beta = \int_0^\infty f_W(x)e^{-\eta x}dx = \tilde{u}(\eta)\tilde{v}(\eta) \;.
+\end{equation}
+Consequently, the average number of consecutive %work and 2PC 
+cycles during the repair
+period (colored red in \Cref{fig:cycles}) is
+\begin{equation}
+\bar{m}_1 = \frac{\beta }{1 -\beta }\;.
+\end{equation}
+The total average number of transactions departing during these cycles,
+$J_1$, is equal to
+\begin{equation} \label{J1}
+J_1 = \bar{m}_1 E(U) (N-1)\mu\;,
+\end{equation}
+where $E(U)=-u^\prime(0)$ is the average length of work intervals.
+
+Then we have a cycle that overlaps the repair completion instant (marked in parts with red and green in~\Cref{fig:cycles}). 
+% During the whole of the preceding work interval, there are $N-1$ operative nodes. 
+In addition, if the repair
+instant falls during the work interval of that cycle, then for the remainder of that interval there
+is an extra node (i.e., the repaired one) available.
+The average number of transactions, $J_2$, departing during
+this  cycle, given that the repair is completed within it, can %thus 
+be
+expressed as
+\begin{equation}  \label{J2}
+    J_2 = E(U)(N-1)\mu + \frac{\mu}{1-\beta} E(U-R) \;,
+\end{equation}
+where $E(U-R)$ is the expected remaining work interval, given that the repair
+completes within the cycle. Averaging over the distribution of $U$, we can write
+\begin{equation}  \label{UR}
+E(U-R) = \int_0^\infty f_U(x)\int_0^x (x-y) \eta e^{-\eta y}dydx \;.
+\end{equation}
+After carrying out the integration and substituting the result into (\ref{J2}), the
+latter becomes
+\begin{equation}  \label{J22}
+J_2 = E(U)(N-1)\mu + \frac{\mu}{1-\beta} \left [ E(U) -
+\frac{1- \tilde{u}(\eta)}{\eta} \right ] \;,
+\end{equation}
+where $\tilde{u}(s)$ is the Laplace transform of $f_U(x)$.
+
+Finally, the total average number of departures during fail-free 
+%work and 2PC 
+cycles with $N$ operative nodes (marked green in~\Cref{fig:cycles}),
+%during the observation period (
+with their average number being $\bar{m} - \bar{m}_1 -1$, is given
+by 
+\begin{equation}
+J_3 = (\bar{m} - \bar{m}_1 -1) E(U) N\mu\;.
+\end{equation}
+
+The system throughput, $T$, defined as the average number of departures per
+unit time, is obtained by dividing the total average number of departures during
+the observation period by the average length of the observation period :
+\begin{equation}
+T = (J_1 +J_2 +J_3)N\xi\;.
+\end{equation}
+
+Now consider the total average number of transactions, $D$, that are lost during the
+observation period. Losses occur either during the initial repair period, when
+transactions attempt to access the failed node, or when the last cycle in
+the observation period is interrupted by the next node failure.
+
+As soon as a transaction is admitted into a node, it produces a list of a random number,
+$k$, of other nodes that it would need to access. If the failed node is on that
+list, the transaction is instantaneously dismissed and is lost. That procedure is repeated
+with the transaction that follows, so following a service completion there may be a series
+of transactions lost instantaneously.
+
+The probability, $\gamma$, that a transaction admitted into an operative node has the
+failed node on its list is
+\begin{equation}   \label{E(k)}
+\gamma = \frac{E(k)}{N-1}\;,
+\end{equation}
+where $E(k)$ is the average size of the list. This is a given parameter. The
+average number of transactions lost instantaneously following a service completion
+during the repair period is therefore equal to $\gamma /(1-\gamma )$.
+
+We conclude that the average number of transactions lost during the $\bar{m}_1$
+successful work and commit cycles within the repair period is
+\begin{equation}
+D_1 = J_1 \frac{\gamma}{1-\gamma}\;,
+\end{equation}
+where $J_1$ is given by (\ref{J1}).
+
+To find the average number, $D_2$, of transactions lost during the work and 2PC cycle
+overlapping the repair instant, we proceed as in the derivation of (\ref{J2}),
+but count only the transactions completed before the repair instant.
+This leads to the following expression:
+\begin{equation}
+D_2 = \frac{(N-1)\mu}{1-\beta}\frac{\gamma}{1-\gamma}
+\left [ \frac{1}{\eta} [1-\tilde{u}(\eta)] - \tilde{u}^\prime(\eta) \right ]\;.
+\end{equation}
+
+Finally, we need the average number, $D_3$, of transactions that are lost from the
+last work and commit cycle in the observation period, the one that is interrupted by
+the next failure instant. Since all transactions executed during that cycle are lost,
+we can write
+
+\begin{equation}
+D_3 = E(U) N\mu\;.
+\end{equation}
+
+The overall rate of transaction losses, $D$, is given by the total average number of
+losses during the observation period, divided by the average length of the
+observation period:
+\begin{equation}
+D = (D_1+D_2+D_3)N\xi\;.
+\end{equation}
+
+The work interval $U$ is set by the control policy as a
+constant, $a$. On the other hand, the commit operation is affected by
+communication delays, so it is more natural to assume that $V$ is random,
+possibly distributed exponentially with mean $b$. In that case, we would
+have
+\begin{equation}
+\tilde{u}(s) = e^{-as}\;\;;\;\;\tilde{v}(s) = \frac{1}{1+bs}\;.
+\end{equation}
+
+\subsection{Average response time}
+\label{sec:av-resp-time}
+
+We will no longer regard that nodes always busy but assume that transactions arrive in a Poisson stream with rate
+$\lambda$ and,
+if there are no available nodes, wait in 
+an external FIFO queue. After
+being processed, a transaction does not depart immediately but is held in the queue until the
+end of the current cycle. If commit is the 2PC outcome, all transactions that were
+executed during the work interval depart together. Otherwise, they are aborted and continue to remain in the queue. The performance measure of interest here is the steady-state average
+response time, $W$, defined as the interval between the arrival of a transaction into the
+system and its departure.
+
+This type of system has been referred to in the literature as a \emph{queue with bulk
+  services}. At certain \emph{service instants}, batches of transactions are removed
+from the queue. More precisely, if the size of the current batch is $m$ and the number
+of transactions present just before the service instant was $n$, then just after the
+service instant there are $n-\min(n,m)$ transactions present. A model where the
+intervals between service instants have a general distribution and all batches
+have the same fixed size was analyzed by Bailey \cite{bailey} more than half a
+century ago.
+
+Bailey's result cannot be used in our case because the number of transactions
+departing at a service instant, i.e. when 2PC execution completes, depends
+on whether a breakdown occurred during the cycle or not, and also on whether
+there were $N$ or $N-1$ operative servers. We propose two estimates for
+$W$: the first is pessimistic and can be treated as an upper bound on the
+response time; the second is clearly optimistic and will provide a lower bound.
+
+\subsection{Upper bound, $W_u$}
+\label{subsec:upperbound}
+
+The first estimate is obtained by assuming that the consecutive intervals
+between service instants are i.i.d. random variables distributed exponentially
+with mean $a+b$, where $a$ is the average work interval and $b$ is the average
+2PC interval. The parameter of that distribution will be denoted by
+$\nu = 1/(a+b)$. The reason why this is a pessimistic assumption is that the
+coefficient of variation of the exponential distribution is 1, while in practice the
+work interval is likely to be constant, or nearly constant. The 2PC interval
+tends to be much smaller than the work interval, so even if it is random, the
+coefficient of variation of a full cycle (comprising both work and 2PC intervals) would tend to be closer to 0
+than to 1.
+
+Under the exponential assumption, the probability that a full cycle is not
+interrupted by a node failure is now approximated by
+\begin{equation} \label{a1}
+\alpha = \frac{\nu}{N\xi+\nu} \;.
+\end{equation}
+When $N\xi$ is small, this value is very close to the one produced by (\ref{a}).
+
+Hence, a service batch is of size 0 with probability $q_0=1-\alpha$.
+
+Since the average period during which there are $N-1$ operative servers is
+$1/\eta$ and the average period during which there are $N$ operative servers
+is $1/N\xi$, we can say that a 2PC interval has $N-1$ operative servers with probability
+$q_1=\alpha N\xi/(N\xi+\eta)$, and has $N$ servers with probability
+$q_2=\alpha \eta/(N\xi+\eta)$. In the former case, an average of
+$m_1=a(N-1)\mu$ transactions are served during the cycle, and in the latter case
+$m_2=aN\mu$ transactions are served.
+
+The above arguments support an assumption that the service batch size, $m$,
+is equal to
+\begin{equation}
+m = \left \{
+    \begin{array}{lll}
+        0 &{\rm with~probability} &q_0 \\
+        m_1 &{\rm with~probability} &q_1 \\
+        m_2 &{\rm with~probability} &q_2 \\
+    \end{array} \right .
+ \;.
+\end{equation}
+If $m_1$ and $m_2$ are not integers, their integer parts are taken.
+
+The average batch size, $B$, is
+\begin{equation} \label{B}
+B = m_1q_1 + m_2q_2 = aN\mu\alpha\frac{(N-1)\xi+\eta}{N\xi+\eta} \;.
+\end{equation}
+
+The necessary and sufficient condition for the stability of the bulk service queue
+is that the transaction arrival rate should be strictly less than the average service capacity:
+\begin{equation} \label{erg}
+\lambda < \nu B \;.
+\end{equation}
+When the failure rate is small and the repair rate is significantly higher, the
+right-hand side of this inequality is very close to the maximum throughput, $T$,
+obtained in the previous section. Thus, requirement (\ref{erg}) is almost identical
+to the more accurate stability condition $\lambda < T$.
+
+Let $\pi_n$ be the steady-state probability that there are $n$ transactions present in the
+queue. Because of the bulk service assumption, any transactions that are in fact being
+served, are considered to be in the queue until the next service instant. The
+number $n$ increases by 1 at arrival instants, and it decreases by 0, $m_1$ or
+$m_2$ at service instants. Equating the up and down transition rates across
+the boundary between states $n$ and $n+1$, we obtain the following set of
+balance equations.
+\begin{equation} \label{bal}
+\lambda \pi_n = \nu \left [ \sum_{j=1}^{m_1} (q_1+q_2) \pi_{n+j}
++ \sum_{j=m_1+1}^{m_2} q_2 \pi_{n+j} \right ];n=0,1,\ldots\;
+\end{equation}
+
+We shall obtain the general solution to this set of equations in geometric form:
+\begin{equation} \label{pnC}
+\pi_n= Cz_1^n\;,
+\end{equation}
+where $C$ and $z_1$ are some positive constants. Substituting (\ref{pnC}) into
+(\ref{bal}), we find that the equations are satisfied as long as $z$ is a zero of the
+following polynomial of degree $m_2$.
+\begin{equation} \label{pz}
+P(z) = \lambda - \nu\left [ \sum_{j=1}^{m_1} (q_1+q_2) z^j
++ \sum_{j=m_1+1}^{m_2} q_2 z^j \right ]\;.
+\end{equation}
+In addition, in order that we may obtain a probability distribution, $z_1$ must be
+a positive real number in the interval $0<z_1<1$.
+
+We have $P(0)=\lambda >0$ and $P(1)= \lambda - \nu (m_1q_1+m_2q_2) <0$,
+according to (\ref{erg}). Therefore, $P(z)$ has a real zero, $z_1$, in the interval
+$(0,1)$. This provides a normalizable solution to the set of balance equations and
+allows us to write
+\begin{equation} \label{pn}
+\pi_n = (1-z_1) z_1^n \;\;;\;\;n=0,1,\ldots\;.
+\end{equation}
+
+It is possible to prove formally that $P(z)$ has no other zeros in the interior of
+the unit disk, but this also follows from the fact that an ergodic Markov process
+cannot have more than one normalizable distribution.
+
+The steady-state average number of transactions in the system, $L$, is obtained from
+(\ref{pn}):
+\begin{equation} \label{L}
+L =  \sum_{n=1}^\infty n\pi_n = \frac{z_1}{1-z_1}\;.
+\end{equation}
+
+The upper bound of the average response time, $W_u$, is then provided by Little's
+theorem:
+\begin{equation} \label{Wu}
+W_u = \frac{L}{\lambda}\;.
+\end{equation}
+
+
+
+\subsection{Lower bound, $W_d$}
+\label{subsec:lowerbound}
+
+A very simple lower bound is derived by making two optimistic assumptions.
+The first is that the work interval and 2PC interval are constant, of lengths
+$a$ and $b$, respectively. The second is that the transactions arriving during the work
+interval are cleared at the end of that cycle, while those arriving during the
+commit operation are cleared during the next cycle, provided that no breakdown
+occurs in the meantime. That would be a reasonable assumption if the total
+average number of arrivals during work and 2PC intervals of a cycle is smaller than the average
+number that can be served by $N-1$ servers during a work interval:
+$\lambda (a+b)< a (N-1)\mu$.
+
+When the cycle duration is constant at $(a+b)$, the probability that a cycle does not
+involve a node failure is
+\begin{equation} \label{a2}
+\alpha = e^{-N\xi(a+b)}\;.
+\end{equation}
+In that case a transaction arriving during a work interval remains in the system for an
+average of half a work interval plus 2PC interval, while an arrival during a
+2PC interval remains in the system for an average of half 2PC interval
+plus a full cycle. The probabilities that an incoming transaction arrives during a work
+interval or a 2PC interval are $a/(a+b)$ and $b/(a+b)$, respectively. Hence,
+the average sojourn time given that the cycle is failure-free  can be written as
+\[
+\left [ (\frac{a}{2}+b)\frac{a}{a+b} + (\frac{b}{2}+a+b)\frac{b}{a+b} \right ]
+= \frac{a+3b}{2}\;.
+\]
+
+In the event of a node failure, the average sojourn time is half a cycle plus a
+full cycle. Thus, the lower bound on the response time becomes
+\begin{equation} \label{Wd}
+W_d = \alpha \frac{a+3b}{2} + (1-\alpha)\frac{3(a+b)}{2}\;.
+\end{equation}
+
+Remember that the average work interval, $a$, is not a system characteristic
+but is set by the operating policy. It is natural to ask therefore, how should that
+interval be chosen in order to minimize $W$? On the one hand, increasing $a$
+may improve the throughput (although that effect is mitigated by an increase in
+the probability of a node failure during a full cycle). On the other hand, transactions
+are kept in the system for longer. Intuitively, there should be an optimal
+value for $a$.
+
+Note that the lower bound (\ref{Wd}) tends to be an increasing function of $a$.
+Therefore, if $W_d $ is taken as a criterion, the optimal $a$ is the smallest value that
+justifies the assumption made above, i.e. that the average number of transactions arriving
+during a cycle should be significantly smaller
+than the number that $N-1$ servers can serve during a work interval. We suggest
+as an empirical rule-of-thumb that one should chose the smallest $a$ that satisfies
+the inequality $\lambda (a+b)< 0.8 a (N-1)\mu$. This yields the value, $a^*$, that
+minimizes $W_d $ as
+\begin{equation} \label{aa}
+a^* = \frac{\lambda b}{0.8(N-1)\mu-\lambda}\;.
+\end{equation}
+
+If the upper bound is minimized, the optimal work interval will, in general, be different.
+These differences will be investigated  experimentally.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%The effects of transactions executed within the same epoch are visible to each other,
+%but as durability is only ensured at the granularity of epochs, it is possible observed
+%state is discarded in the event of a node failure and a subsequent rollback.
+%Therefore, transactions' results can not be released until the end of the epoch when all
+%writes are made durable.
+%This increases the average latency of transactions, but such an increase is acceptable
+%for a significant number of transactional workloads~\cite{b14,b15,b16}.
+
+%\subsection{System Setup}
+%\label{sec:system-setup}
+
+%An epoch-based  distributed database consists of a set of \emph{participant nodes},
+%each holding a disjoint portion of the complete data, and a single
+%\emph{epoch coordinator node}, which is responsible for incrementing the global epoch
+%and managing 2PC across the set of participant nodes.
+%Transactions arrive at participant nodes who coordinate transactions' executions,
+%running them until they commit or abort.
+%The result of each transaction is not released until all participant nodes agree to commit
+%the epoch the transaction is a constituent of.
+%
+%Replication is beyond the scope of this paper, however, in practice both the epoch
+%coordinator and participant nodes would be replicated.
+%There are two main data replication approaches:
+%\emph{synchronous} and \emph{asynchronous}.
+%With synchronous replication, a transaction delays commitment until its writes are
+%replicated on all necessary replicas.
+%This is typically achieved via primary-backup replication or state machine replication
+%through algorithms such as Raft~\cite{b17} or Paxos~\cite{b18}.
+%Asynchronous replication provides lower latency as transactions commit immediately
+%at primary replicas, with commits batched and applied later at secondary replicas,
+%but this introduces the possibility of stale reads.
+%It was demonstrated in~\cite{b10} that epoch-based commit can be used to avoid
+%synchronous per-transaction replication by using epochs as a barrier within which
+%asynchronous replication is performed.
+%Also, in~\cite{b10} the epoch coordinator is implemented
+%as a replication state machine to prevent it from being a single point of failure.
+%For this reason, in the remainder of this paper it is assumed that only participant nodes
+%can fail within an epoch.
+
+%\subsection{Protocol Description}
+%\label{sec:ebc-protocol-description}
+
+%\input{figures/ebc}
+
+%The epoch coordinator attempts to commit the current epoch every $a$ milliseconds by
+%%running two phases
+
+%\subsection{Discussion}
+%\label{sec:ebc-discussion}
+
+%It was established that epoch-based commit performs well when all transactions are
+%short-lived, displaying up to a 4x increase in throughput over a conventional setup using
+%2PC per-transaction~\cite{b10}.
+%There are, however, a number of limitations of this approach that must be considered.
+%Firstly, epoch-based commit is not suitable to workloads that require extremely
+%low-latency.
+%The protocol incurs an increased latency per-transaction as the result of individual
+%transactions not being released until its epoch commits.
+%Secondly, as a consequence of not releasing results until the end of the epoch,
+%the protocol is sensitive to imbalanced workloads and slow nodes.
+%A single long-running transaction can block the complete epoch from committing.
+%Thirdly, failures are detected at the granularity of epochs meaning all transactions,
+%across the whole cluster, are aborted and re-executed owing to a single node failure.
+%Retrying the whole epoch also increases the load on the system and may potentially
+%introduce cascading issues upstream in applications built on top of the database.

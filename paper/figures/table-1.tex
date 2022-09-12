@@ -1,0 +1,18 @@
+\begin{table}[htbp]
+  \centering
+  \caption{Parameters of the analytical models and simulation. }
+  \begin{tabular}{|c|l|c|}
+    \hline
+    \textbf{Symbol}   & \textbf{Meaning} & \textbf{Values} \\ \hline
+    $N$ & Number of participant nodes  & 64 \\ \hline
+    $a$ & Work interval (ms) & 4-1800 \\ \hline
+    $b$ & Mean time to commit (ms) & 1.7 \\ \hline
+    $\mu$ &  Node's transaction service rate (txn/ms) & 1  \\ \hline
+    $1/\xi$   & Mean time between failure (hr)  & $12$   \\ \hline
+    $1/\eta$  & Mean time to repair (min) & $30$ \\ \hline
+    $E(\kappa)$  & Remote servers accessed by transactions & 0.1 \\ \hline
+    $\lambda^{\mathrm{\dagger}}$  & Transaction arrival rate (txn/s)  & 30000,40000  \\ \hline
+    \multicolumn{3}{l}{$^{\mathrm{\dagger}}$~Average response time model only.} \\
+  \end{tabular}
+  \label{tab:params}
+\end{table}

@@ -1,0 +1,49 @@
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts,bm}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{cleveref}
+\usepackage{subcaption}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\crefname{algocf}{alg.}{algs.}
+\Crefname{algocf}{Algorithm}{Algorithms}
+
+\usepackage{tikz}
+\usetikzlibrary{arrows,decorations.markings,positioning, shapes.geometric}
+\usetikzlibrary{patterns}
+\newcommand*\circled[1]{\tikz[baseline=(char.base)]{
+            \node[shape=circle,draw,inner sep=2pt,fill=orange] (char) {\small{#1}};}}
+\newcommand*\redcircled[1]{\tikz[baseline=(char.base)]{
+            \node[shape=circle,draw,inner sep=2pt,fill=cadmiumred] (char) {\small{#1}};}}
+\newcommand*\squared[1]{\tikz[baseline=(char.base)]{
+            \node[shape=rectangle,draw,inner sep=2pt,fill=pastelred] (char) {#1};}}
+
+\definecolor{darkpastelblue}{rgb}{0.47, 0.62, 0.8}
+\definecolor{brilliantlavender}{rgb}{0.96, 0.73, 1.0}
+\definecolor{cadmiumred}{rgb}{0.89, 0.0, 0.13}
+\definecolor{pastelred}{rgb}{1.0, 0.41, 0.38}
+
+\usepackage[linesnumbered,ruled,vlined,noend]{algorithm2e}
+\DontPrintSemicolon
+\SetKw{kwUpon}{upon}
+\SetKw{kwSend}{send}
+\SetKw{kwSet}{set}
+\SetKw{kwLet}{let}
+\SetKw{kwInc}{inc}
+\SetKw{kwWait}{wait for}
+\SetKw{kwWrite}{write}
+\SetKw{kwWhen}{when}
+\SetKw{kwInitiate}{initiate}
+\SetKw{kwInput}{input:}
+\SetKwBlock{Begin}{begin}{end}
+
+\usepackage[switch]{lineno}
+% \linenumbers
+
+\usepackage{placeins}

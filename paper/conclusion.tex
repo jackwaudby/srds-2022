@@ -1,0 +1,22 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+We have developed two analytical models for the epoch-based commit protocol which allow database operators to 
+maximize throughput, minimize average response time, or seek a trade-off between them. The accuracy of these 
+models has been validated through a simulation study that considered a cluster of 64 nodes operating for 100 
+days. We also developed epoch-based multi-commit, which aims to minimise transaction aborts in the event of node 
+failures, but performs identically to the original version under other circumstances. Our simulation study 
+affirms that multi-commit performs better when distributed transactions originating at a given node tend to 
+access specific other nodes in their remote interactions. 
+%The workload characteristics for which multi-commit decrease lost transactions were explored and identified.
+%When node affinity is high, the number of distributed transaction does not dominant the
+%workload, and each access a small number of nodes, the lost transaction rate can be decreased by up to 83\%.
+When failures are rare, the analytical expressions derived for the original protocol can also be used in 
+determining the right epoch intervals for the multi-commit version as well. Thus, we offer a practical 
+alternative to epoch-based commit and analytical solutions to efficiently tune the parameter of epoch-based 
+commit protocols in practical settings.  
+
+%An interesting avenue for future work is investigating how the epoch coordinator can be decentralized.
+%This could help mitigate against imbalanced workloads and stragglers by allowing
+%nodes to move through epochs locally and only forming commit groups when needed.
+%This could be appealing for geo-distributed deployments.

@@ -1,0 +1,70 @@
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[node distance=2cm,scale=0.65, every node/.style={transform shape}]
+    % lanes
+    \draw [->,>=stealth] (1,0) -- (12,0);
+    \draw [->,>=stealth] (1,-2) -- (12,-2);
+    \draw [->,>=stealth] (1,-4) -- (12,-4);
+
+    % \node (S1) at (0.4, 0) {Epoch};
+    \node (C) at (0, 0) {Coordinator};
+    \node (S2) at (0, -2) {Node $N_1$};
+    \node (S3) at (0, -4) {Node $N_2$};
+
+    % execution phase
+    \draw [dashed] (2,1.25) -- (2,-5);
+    \node (P) at (3.5, 1) {\small{WORK}};
+
+    \draw [->,>=stealth] (2.4,-2.2) -- (2.6,-3.8);
+    \draw [->,>=stealth] (2.8,-3.8) -- (3.0,-2.2);
+
+    \draw [->,>=stealth] (3.3,-3.8) -- (3.5,-2.2);
+    \draw [->,>=stealth] (3.7,-2.2) -- (3.9,-3.8);
+
+    \draw [->,>=stealth] (4.2,-2.2) -- (4.4,-3.8);
+    \draw [->,>=stealth] (4.6,-3.8) -- (4.8,-2.2);
+
+    \node (P) at (8, 1) {\small{2PC}};
+    \draw [dashed] (2,0.75) -- (11,0.75);
+    \draw [dashed] (2,1.25) -- (11,1.25);
+    \draw [dashed] (5,0.3) -- (11,0.3);
+
+    % prepare phase
+    \draw [dashed] (5,1.25) -- (5,-5);
+    \node (P) at (6.5, 0.5) {\small{PREPARE}};
+    \draw [->,very thick,darkpastelblue,>=stealth] (5.2,-0.2) -- (5.6,-1.8);
+    \draw [->,very thick,darkpastelblue,>=stealth] (5.2,-0.2) -- (5.8,-3.8);
+    \node[draw,rectangle,minimum size=.5cm,inner sep=0pt,fill=pastelred] at (6,-2) {A};
+    \node[draw,rectangle,minimum size=.5cm,inner sep=0pt,fill=pastelred] at (6.2,-4) {A};
+    \draw [->,very thick,darkpastelblue,>=stealth] (7.2,-1.8) -- (7.6,-0.2);
+    \draw [->,very thick,darkpastelblue,>=stealth] (7.2,-3.8) -- (7.8,-0.2);
+
+    % commit phase
+    \draw [dashed] (8,0.75) -- (8,-5);
+    \node (CO) at (9.5, 0.5) {\small{COMMIT}};
+    \node[draw,rectangle,minimum size=.5cm,inner sep=0pt,fill=pastelred] at (8.3,0) {B};
+    \draw [->,very thick,darkpastelblue,>=stealth] (8.6,-0.2) -- (9.2,-1.8);
+    \draw [->,very thick,darkpastelblue,>=stealth] (8.6,-0.2) -- (9.2,-3.8);
+    \draw [->,very thick,darkpastelblue,>=stealth] (10,-1.8) -- (10.6,-0.2);
+    \draw [->,very thick,darkpastelblue,>=stealth] (10.2,-3.8) -- (10.8,-0.2);
+    \draw [dashed] (11,1.25) -- (11,-5);
+
+    % \node[draw,circle,minimum size=.5cm,inner sep=0pt] at (4.6,-0.4) {$1$};
+    % \node[draw,circle,minimum size=.5cm,inner sep=0pt] at (6,-1.4) {$2$};
+    % \node[draw,circle,minimum size=.5cm,inner sep=0pt] at (6.8,-3.6) {$3$};
+    % \node[draw,circle,minimum size=.5cm,inner sep=0pt] at (7.6,0.4) {$4$};
+    % \node[draw,circle,minimum size=.5cm,inner sep=0pt] at (8.8,0.5) {$5$};
+    % \node[draw,circle,minimum size=.5cm,inner sep=0pt] at (8.7,-3.5) {$6$};
+    % \node[draw,circle,minimum size=.5cm,inner sep=0pt] at (9.8,0.4) {$7$};
+    % \node[draw,circle,minimum size=.5cm,inner sep=0pt] at (10.6,0.4) {$8$};
+    % \node[draw,circle,minimum size=.5cm,inner sep=0pt] at (11.4,0.4) {$9$};
+
+  \end{tikzpicture}
+  \caption{Work and 2PC intervals of a cycle in the epoch-based commit protocol.
+  %An execution of epoch-based commit. 
+%   Various failure scenarios are numbered from 1 to 9. 
+   % Durable writes are indicated by red squares and messages
+    %exchanged during 2PC by blue arrows.
+    }
+  \label{fig:ebc}
+\end{figure}

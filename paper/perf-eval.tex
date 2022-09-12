@@ -1,0 +1,67 @@
+\section{Performance Evaluation Strategies}
+\label{sec:perf-eval-strat}
+
+The principal aim of simulations is two-fold: to assess the accuracy of the analytical models and explore 
+circumstances in which the epoch-based multi-commit can perform better than the original epoch-based commit. The former will assist  database administrators in choosing a suitable work interval, $a$, to accomplish their performance targets and the latter will help to demonstrate that the multi-commit protocol is a practical alternative to the original. Recall that multi-commit cannot perform worse than the original in any circumstance; this is because the former differs from the latter only when a node fails at which time the coordinator expends a small computational cost on trying to minimise aborts. 
+
+In assessing the efficacy of the expression for maximum throughput, our  discrete event-based simulations~\cite{mitrani} will follow the experimental setup in~\cite{lu}: nodes will spawn a new transaction as soon as they finish executing the current one. Thus, the nodes are never idle and the resulting throughput will be the maximum attainable. In measuring the average latency, simulations will consider such values for transaction arrival rates that the system is kept in a steady state; i.e., the number of transactions waiting to be processed will not grow monotonically with time. Under this steady state condition, throughput is same as the arrival rate and hence not measured.
+
+In our simulations, incoming transactions are distributed ones with 10\% probability which is larger than the 
+threshold 8\% observed in \Cref{fig:3} for having multiple commit groups at the end of a work interval. Thus, 
+we seek to explore the effects of  node-affinity when the proportion of distributed transactions does not 
+favour the emergence of multiple groups.
+
+A distributed  transaction  interacts with one remote node and we consider two policies for choosing that  
+remote node: \emph{random} and \emph{paired affinity}.
+In the former, the remote node is randomly chosen; in the latter, nodes are paired  and a distributed 
+transaction originating in a given node accesses the paired node with 90\% probability and a randomly chosen 
+one with 10\% probability. Node-pairing captures data correlations between the partitions hosted by the paired 
+nodes. 
+
+Note that if a remote node chosen for data access is crashed, then processing of that transaction ceases and 
+all effects of having processed it are undone. Such a transaction is called \emph{`dropped'} in 
+\Cref{sec:maximum-throughput} and not counted in throughput. Also, 10\% of transactions accessing one remote 
+node sets $E(\kappa) = 0.1$ in \Cref{E(k)}.   
+
+The parameters of the analytical models and their values used in simulations are summarized 
+in~\Cref{tab:params}.
+%The selected values were chosen in a way to be representative of a practical OLTP database  configuration and workload. 
+A cluster size of 64 nodes and one coordinator is similar to that used in the experimental analysis of 
+concurrency control protocols in~\cite{harding}. The choice of $\mu = 1$ is guided by the fact that OLTP 
+transactions' useful work consumes about one millisecond and they seldom have user stalls, rather they are 
+executed as stored procedures~\cite{stonebraker}. The mean time to execute 2PC is represented by $b$. To
+estimate $b$, it was assumed a disk flush takes 10$\mu s$ and database nodes are co-located within the same
+datacenter with a round trip time of $1ms$. Thus, as 2PC operations involve 2 sequential disk writes and 1.5
+network calls before results are released back to clients, $b$ is set to 1.7$ms$. Following~\cite{garraghan}, 
+the mean time between failure $1/\xi$ and the mean time to repair $1/\eta$ are taken to be 12 hours and 30 
+minutes respectively. 
+
+\input{figures/table-1}
+
+Given that $N=64$, it is possible to encounter more than one failed node in simulations even though $1/\xi \gg 
+1/\eta $. (Note: the larger the value of $N$, the less likely it is for Assumption 1 to hold.) Thus, any loss 
+of accuracy due to Assumption 1 in \Cref{sec:model-assumptions} is assessed. Simulations measure the following 
+metrics:
+
+\noindent \textbf{\emph{System throughput (T):}} Number of transactions committed per second.
+%   Note, we are interested in completed transactions and not committed transactions.
+%   This is because within an epoch a transaction may abort due violating an integrity
+%   constraint and not as a result of node failure.
+%   Therefore, from the perspective of both protocols this transaction still completed.\item 
+
+\noindent \textbf{\emph{Lost transaction rate (D):}} Rate at which transactions are being aborted or dropped 
+due to failures.
+
+\noindent \textbf{\emph{Committed transactions during failures ($\bm{CT_f}$):}} Average number of 
+transactions committed in cycles with failures. 
+
+\noindent \textbf{\emph{Average Response time (W):}} The response time is measured from the point when a 
+transaction enters the system, to the point when it departs, after potentially several retries. Since 
+transaction are processed in batches and some may not be committed in their first execution, the average value 
+(in $ms$) is computed over the simulation period.
+
+\noindent \textbf{\emph{Operational commit groups (CG):}} the number of commit groups that do not contain a 
+failed node, given that node failure has occurred in a given cycle. It is zero for the epoch-based commit 
+where nodes always form one single commit group.
+
+

@@ -1,0 +1,110 @@
+\section{Related Work}
+\label{sec:related-work}
+
+% 1: approaches to improve distributed transaction processing;
+% (i) minimize/eliminate, (ii) determinism, (iii) relax consistency, (iv) blended approaches, (v) epochs
+Numerous approaches to improve distributed transaction processing performance have been proposed.
+%Several systems attempt to \emph{minimize} or \emph{eliminate} distributed transactions.
+Workload-driven partitioning can \emph{minimize} distributed transactions~\cite{curino} and dynamic data repartitioning can \emph{eliminate} them completely~\cite{das,lin}.
+% Schism uses a workload-driven partitioning scheme to \emph{minimize}  
+% distributed transactions~\cite{curino}, while
+% G-Store~\cite{das} and LEAP~\cite{lin} \emph{eliminate} them through dynamic data repartitioning.
+% Others avoid 2PC by \emph{mandating determinism}~\cite{thomson,ren,thomson2}.
+\emph{Mandating determinism} also avoids 2PC~\cite{thomson,ren,thomson2}.
+%The idea behind deterministic databases is to order and replicate transactional inputs prior to execution using a sequencing layer.
+% Pioneers of this approach are Calvin~\cite{thomson} and SLOG~\cite{ren}.
+A caveat with such a mandate is that 
+%deterministic 
+% databases is 
+%that 
+transactions' read and write sets be known prior 
+to execution~\cite{ren2},
+%If it cannot be met, 
+else, a reconnaissance phase is executed to
+discover these sets which amounts to running a transaction twice. 
+Aria~\cite{lu2} avoids this caveat by using a deterministic reordering mechanism, but its performance suffers under high contention workloads~\cite{lu}.
+Prognosticator~\cite{issa} circumvents this limitation by using symbolic execution to build key-level 
+transaction profiles.
+%, which are used to execute transactions with a high degree of parallelism.
+
+% Another category of systems 
+Some systems
+% \emph{weaken isolation} and 
+\emph{relax consistency guarantees} 
+% \emph{consistency guarantees} 
+to achieve 
+better performance, offering snapshot isolation~\cite{elnikety,du,sovran} or highly available 
+transactions~\cite{bailis}.
+% Another group of systems 
+%opt for a \emph{blended approach} by 
+Others
+combine concurrency control, replication, and commitment into a unified protocol 
+to reduce WAN round trip instances and thus decrease latency
+% to amortize the costs of 2PC.
+% Thereby reducing the number of WAN RTs and hence latency
+% round trips 
+% ~\cite{kraska,zhang,fan,mu,nawab,maiyya}.
+% Thereby 
+%principal aim here is to minimize 
+% the number of WAN round trips and hence latency are reduced
+~\cite{kraska,zhang,fan,mu,nawab,maiyya}.
+%decrease latency.
+% (see MDCC~\cite{kraska}, TAPIR~\cite{zhang}, Ocean Vista~\cite{fan},
+% Janus~\cite{mu}, Helios~\cite{nawab}, and G-PAC~\cite{maiyya}).
+Similarly, \emph{Parallel Commits}~\cite{taft} 
+% is a related technique that 
+halves latency by concurrently performing
+consensus round trips.
+% Another related technique~\cite{taft}
+%is CockroachDB~\cite{taft}
+% uses \emph{Parallel Commits} to halve the latency 
+%of distributed transactions 
+% by concurrently performing
+% consensus round trips. % required to commit a transaction. 
+
+Several 
+% recent 
+OLTP databases utilize epochs to exchange improved throughput
+for higher latency.
+Silo 
+uses epochs to
+% in the context of 
+% a single-node many-core database,
+%does not detect anti-dependencies within epochs in order to 
+reduce shared memory writes~\cite{tu}.
+Obladi %tackles the problem of data access privacy by 
+combines 
+them with Oblivious RAM 
+% and
+% epochs 
+to hide access patterns~\cite{crooks}.
+%from cloud providers
+STAR~\cite{lu3} runs distributed 
+% transactions 
+and single-node transactions in different
+epochs.
+COCO~\cite{lu} leverages epochs to mitigate against the costs of 2PC and
+synchronous replication.
+%To our knowledge,
+Our epoch-based multi-commit is the first to combine
+epochs and data access patterns to minimise aborts in the presence of node
+failures.
+
+% 2: analytical modelling
+Constructing analytical models of data management systems has a rich history.
+Objectives vary: performance prediction in messaging systems~\cite{wu}, 
+%analysing consistency properties % of blockchain protocols
+%~\cite{meng},
+%Analytical models have been used extensively to 
+studying the behavior of concurrency control protocols %for transaction-processing systems
+~\cite{yu,agrawal,disanzo} 
+%and for Software Transactional Memories
+, and
+%They have also been extensively utilised
+%in the study of 
+atomic commitment protocols in distributed 
+databases~\cite{menasce,liu}.
+Our work is the first to  %builds on previous work, 
+present analytical models for epoch-based commit.
+
+

@@ -1,0 +1,122 @@
+\section{Introduction}
+\label{sec:epoch-intro}
+
+% Transition from single-node to distributed database
+When a single-node database reaches its capacity limits,
+a common option is to partition data across multiple nodes forming a
+distributed database~\cite{stonebraker}.
+%High levels of scalability ensue 
+When transactions access data within a single node, there is no need for any coordination. %, and hence communication, between nodes.
+However, when workloads contain
+\emph{distributed} transactions accessing data from multiple nodes,
+an \emph{atomic commitment protocol},
+typically \emph{two-phase commit} (2PC)~\cite{bernstein}, needs to be executed so that distributed transactions are guaranteed of 
+atomicity and durability when nodes are prone to failures. % of distributed transactions. 
+%so that the effects of committed transactions are persisted 
+%against  failures.
+
+% 2PC costs
+Executing 2PC generally extracts a high performance cost 
+%s of managing distributed transactions and 2PC arewell-established
+~\cite{guerraoui,harding}.
+It involves two sequential network round trips, one for each of its phases,
+and two sequential durable writes. 
+%Depending on hardware deployment, 2PC 
+When 2PC is executed at the end of each distributed transaction, it increases the transaction latency by an additional delay of up to 10$ms$.
+In addition, as 2PC execution prolongs the lifetime of a distributed transaction within the database, 
+the potential for data contention among transactions (distributed or otherwise) intensifies  which, in turn, leads to further performance degradation.
+For these reasons, a significant strand of distributed transactions research focuses on minimising the costs inflicted by 2PC executions.
+
+% Brief related work
+A range of solutions have been proposed, each with their own limitations. %practical limitations. 
+%and often imposing impractical assumptions.
+Schism~\cite{curino} attempts to minimise distributed transactions via
+a workload-driven partitioning scheme.
+Unfortunately, in real-world scenarios it is often impossible to gain an accurate, prior knowledge on workloads.
+Another proposal is to eliminate distributed transactions through dynamic data
+re-partitioning ~\cite{das,lin}, but this incurs non-negligible run-time overheads.
+Others mandate a declaration
+of transactions' read and write sets prior to their execution~\cite{thomson,ren}, which can be unrealistic in general settings.
+
+% Epoch-based commit
+A recent practical proposal is \emph{epoch-based commit}~\cite{lu}.
+Based on the widely-held notion that node failures are getting less frequent with modern hardware, it views that 2PC need not be executed at the end of every distributed transaction. Instead,
+%excessive and unnecessary coordination.
+2PC is executed once for all transactions that arrive and get processed within a time interval called an \emph{epoch}. Thus, an epoch is the base unit for doing 2PC and all transactions processed within it either commit or abort through one common 2PC execution.
+(This idea is a distributed extension of \emph{group-commit} proposed in~\cite{dewitt} to reduce disk I/O latency for single-node databases.)
+
+%In epoch-based approach, 
+The cost of one 2PC execution is thus amortised over multiple transactions processed within an epoch. Moreover, transactions whose processing is completed can release their locks instead of waiting until they commit at the epoch end; this reduces scope for contention. They can also 
+%execution and
+\emph{asynchronously} log their writes to persistent storage. The effects of all these features are two-fold. 
+On the up side, throughput increases substantially - by four times (4x) as per the experiments conducted 
+in~\cite{lu}. %the performance study in
+On the down side, a transaction's results cannot be released until the epoch end when all its writes have 
+become durable. This means that the earlier a transaction arrives during an epoch, the longer it waits 
+before its results can be released; i.e., the average latency of transactions increases. 
+%However, the performance study in ~\cite{b10} shows that epoch-based commit increases throughput by four-fold (4x).
+
+% Selecting the optimal epoch size
+
+It is important to note that amortization of 2PC cost over multiple transactions also tends to increase the 
+throughput as epoch size increases, when nodes do not fail. However, if a node fails, then the number of 
+transactions aborted at the end of an epoch (which is when that failure is globally detected) will be large 
+if the epoch was chosen to be long; this wasted work obviously reduces throughput. Thus, the possibility of 
+node failures favours shorter epochs. In fact,  there is an optimum epoch length at which throughput is 
+maximised which can be used if increased latency is a minor concern. (Increased latency is acceptable for 
+many workloads, see~\cite{crooks,tu,narula}.) On the other hand, a user may want a reasonably high throughput 
+as well as an acceptably moderate latency. Such a trade-off requires the means to choose appropriate epoch 
+length. These requirements 
+%for adopting epoch-based commit in clusters 
+were left as future work in the original paper~\cite{lu} and are being fully addressed here. 
+
+We derive analytical solutions for estimating throughput and average latency in terms of epoch length and some system and load parameters. Estimating average latency accounts for aborted transactions being completed in subsequent epochs. Our derivations make certain simplifying assumptions, such %times to node failures and recovery are exponentially distributed and 
+as the cluster has at most one failed node at any time which holds if failures are independent and less frequent and if a failed node recovers before another node fails.   
+%From a user-level perspective, the critical operational parameter for determining good
+%performance in epoch-based commit is the epoch size.
+%A shortcoming of previous work is the lack of a systematic approach in choosing
+%this parameter for a given deployment and workload characteristics.
+%Two approximate models are developed in this paper to address this gap.
+%The first model provides the epoch size which maximizes throughput,
+%whilst the second gives the epoch size that minimizes the average response time
+%of transactions.
+%Note, the optimal values produced often differ, therefore the models allow the user to
+%explore the trade-off between throughput and latency in order to satisfy their specific
+%workload requirements.
+
+% EBMC
+The protocol of~\cite{lu} proposes that all transactions executed during an epoch be aborted in case of a node failure. This assumes that each node has directly or indirectly accessed the  failed node at sometime during the epoch and therefore all transactions it executed accessed some data now lost due to failure. We examine and find this assumption to be overly pessimistic and develop an \emph{epoch-based multi-commit} version. Each node maintains a list of nodes it interacted with, and uploads the list to 2PC coordinator. The latter then constructs disjoint \emph{commit groups} such that a node within a given commit group woud have interacted, directly or transitively, only with other nodes in that group during the epoch. In case of a node failure, only those nodes in the commit group containing the failed node will abort their transactions and the rest will commit the transactions they processed. 
+
+%It is easy to see that
+When a workload contains no distributed transaction, each commit group will have just one node and all operative nodes can commit their transactions in the event of a failure. On the other extreme, if the workload has many distributed transactions that cause every node to interact with every other node during an epoch, then there is only one commit group and a failure will cause all operative nodes to abort all their transactions as in the epoch-based commit protocol. Thus, our multi-commit version can automatically take advantage of favourable workload conditions in the event of a failure and avoid excessive aborts, while performing identically as the original version during failure-free epochs.
+%requiring any prior knowledge  of the workload itself.
+%In epoch-based commit, database node failures are detected at the granularity of
+%epochs meaning all transactions, across the whole cluster, are aborted and re-executed
+%owing to a single node failure.
+%This can result in a significant amount wasted work.
+%Additionally, retrying the whole epoch can increase the load on the system and
+%potentially introduce cascading issues upstream in applications built on top of the
+%database.
+%Our observation is that, in certain cases, this abort strategy is heavy-handed and
+%not all nodes need be in the same \emph{commit group} for an epoch.
+%For example, in an epoch there maybe no communication between node 1 and node 2,
+%hence a failure of node 1 need not result in the discarding of completed work on node 2.
+%Therefore, in the event of a node failure some work may still be safely committed.
+%In this paper, we present \emph{epoch-based multi-commit} which captures
+%\emph{epoch dependencies}, that is, interactions between nodes in an epoch.
+%At commit-time these dependencies are used to form commit groups, with only those
+%containing a failed node needing to abort.
+
+This paper makes three major contributions. Analytical models for estimating throughput and average latency are developed in \Cref{sec:epoch-based-commit} for epoch-based commit protocol. They allow an appropriate epoch size to be judiciously chosen for maximum throughput or minimum latency or seeking a trade-off between the two. Secondly, the epoch-based multi-commit protocol is presented in \Cref{sec:epoch-based-multi}, together with a popular benchmarking case study carried out to support its core design rationale. Finally, a range of simulation experiments involving a cluster of 64 nodes operating for a 100-day period are carried out. They (i) demonstrate the accuracy and efficacy of the models of \Cref{sec:epoch-based-commit} for choosing the appropriate epoch size, (ii) point to workload features that can aid the multi-commit protocol in minimising aborts when failures occur, and (iii) affirm the effectiveness of the models in selecting the right epoch size  also for multi-commit version. \Cref{sec:perf-eval-strat} presents the strategies adopted for performance study which is followed by the presentation and discussion of results in \Cref{sec:evaluation}. Related works are summarised in \Cref{sec:related-work} and \Cref{sec:conclusion} concludes the paper. 
+
+% \begin{enumerate}
+% \item We develop two analytical models for the epoch-based commit protocol that,
+%   given certain workload and system characteristics, allow for the estimation of the
+%   optimal epoch size for achieving maximum throughput and minimum average
+%   response time.
+% \item We motivate and introduce the design of the epoch-based multi-commit protocol.
+% \item We report a extensive performance evaluation of both epoch-based commit and
+%   multi-commit through simulations for a variety of parameter settings.
+% \end{enumerate}
+
+\input{figures/figure-1}
