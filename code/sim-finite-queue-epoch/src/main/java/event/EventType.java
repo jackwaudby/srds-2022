@@ -1,0 +1,13 @@
+package event;
+
+public enum EventType
+{
+    TRANSACTION_ARRIVAL,
+    EPOCH_TIMEOUT,
+    TRANSACTION_COMPLETED,
+    READY_TO_COMMIT,
+    COMMIT_COMPLETED,
+    ABORT_COMPLETED,
+    FAILURE,
+    REPAIR,
+}
