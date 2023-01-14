@@ -10,8 +10,6 @@ public class Rand
     private static final Rand instance = new Rand();
 
     private final ExponentialDistribution transactionServiceRateDistribution;
-    private final ExponentialDistribution failureDistribution;
-    private final ExponentialDistribution repairDistribution;
     private final ExponentialDistribution commitOperationDistribution;
     private final ExponentialDistribution abortOperationDistribution;
     private final ExponentialDistribution epochTimeoutDistribution;
@@ -44,12 +42,6 @@ public class Rand
         double transactionServiceRate = config.getTransactionServiceRateInSecs();
         this.transactionServiceRateDistribution = new ExponentialDistribution( transactionServiceRate );
 
-        double repairRate = config.getRepairRateInSecs();
-        this.repairDistribution = new ExponentialDistribution( repairRate );
-
-        double failureRate = config.getFailureRateInSecs();
-        this.failureDistribution = new ExponentialDistribution( failureRate );
-
         double commitOperationRate = config.getCommitOperationRateInSecs();
         this.commitOperationDistribution = new ExponentialDistribution( commitOperationRate );
 
@@ -71,8 +63,6 @@ public class Rand
             long seedValue = config.getSeedValue();
 
             transactionServiceRateDistribution.reseedRandomGenerator( seedValue );
-            repairDistribution.reseedRandomGenerator( seedValue );
-            failureDistribution.reseedRandomGenerator( seedValue );
             commitOperationDistribution.reseedRandomGenerator( seedValue );
             abortOperationDistribution.reseedRandomGenerator( seedValue );
             remoteParticipantDistribution.setSeed( seedValue );
@@ -107,21 +97,6 @@ public class Rand
     public double generateCommitOperationDuration()
     {
         return commitOperationDistribution.sample();
-    }
-
-//    public double generateAbortOperationDuration()
-//    {
-//        return abortOperationDistribution.sample();
-//    }
-
-    public double generateNextFailure()
-    {
-        return failureDistribution.sample();
-    }
-
-    public double generateRepairTime()
-    {
-        return repairDistribution.sample();
     }
 
     public int generateDependency( int thisNodeId, boolean affinity )

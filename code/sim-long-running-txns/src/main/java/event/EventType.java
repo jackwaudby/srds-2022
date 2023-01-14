@@ -7,6 +7,4 @@ public enum EventType
     READY_TO_COMMIT,
     COMMIT_COMPLETED,
     ABORT_COMPLETED,
-    FAILURE,
-    REPAIR,
 }

@@ -9,8 +9,6 @@ public class Config
     private static double commitOperationRate;
     private static double abortOperationRate;
     private static double transactionServiceRate;
-    private static double failureRate;
-    private static double repairRate;
     private static double propDistributedTransactions;
     private static final long seedValue = 0;
     private static boolean fixSeed = true;
@@ -66,26 +64,6 @@ public class Config
     public int getClusterSize()
     {
         return clusterSize;
-    }
-
-    public double getRepairRateInMillis()
-    {
-        return repairRate;
-    }
-
-    public double getRepairRateInSecs()
-    {
-        return repairRate / 1000.0;
-    }
-
-    public double getFailureRateInMillis()
-    {
-        return failureRate;
-    }
-
-    public double getFailureRateInSecs()
-    {
-        return failureRate / 1000.0;
     }
 
     public double getEpochTimeoutInMillis()
@@ -158,16 +136,6 @@ public class Config
         Config.transactionServiceRate = transactionServiceRate;
     }
 
-    public void setFailureRate( double failureRate )
-    {
-        Config.failureRate = failureRate;
-    }
-
-    public void setRepairRate( double repairRate )
-    {
-        Config.repairRate = repairRate;
-    }
-
     public void setFixSeed( boolean fixSeed )
     {
         Config.fixSeed = fixSeed;
@@ -192,8 +160,6 @@ public class Config
                "    average commit operation rate (ms): " + getCommitOperationRateInMillis() + "\n" +
                "    average abort operation rate (ms): " + getAbortOperationRateInMillis() + "\n" +
                "    average transaction service rate (ms): " + getTransactionServiceRateInMillis() + "\n" +
-               "    average failure rate (ms): " + getFailureRateInMillis() + "\n" +
-               "    average repair rate (ms): " + getRepairRateInMillis() + "\n" +
                "    distributed transactions (%): " + propDistributedTransactions * 100 + "\n" +
                "    set seed: " + fixSeed + "\n" +
                "    affinity: " + affinity + "\n" +

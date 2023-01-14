@@ -11,7 +11,7 @@ public class WriteOutResults
     public static void writeOutResults( Config config, Metrics metrics, double realTime, double simulationTime )
     {
 
-        String[] headers = {"n", "a", "b", "mu", "xi", "eta", "k", "algo",
+        String[] headers = {"n", "a", "b", "mu", "k", "algo",
                             "completedJobPs", "lostJobsPs", "lostJobsPf", "avOpCommitGroupsPf", "avCommitsPf",
                             "completedEp", "failedEp", "partialEp", "failureEvents",
                             "totalCompletedJobs", "totalLostJobs", "totalOpCommitGroupsPf",
@@ -34,11 +34,9 @@ public class WriteOutResults
         var a = config.getEpochTimeoutInMillis(); // epoch timeout
         var b = config.getCommitOperationRateInMillis(); // commit/abort delay
         var mu = config.getTransactionServiceRateInMillis(); // transaction service rate
-        var xi = config.getFailureRateInMillis(); // failure rate
-        var eta = config.getRepairRateInMillis(); // repair rate
         var k = config.getPropDistributedTransactions() * 100; // proportion of distributed transactions
         var algo = config.getAlgorithm(); // protocol
-        String params = String.format( "%s,%s,%s,%s,%s,%s,%s,%s", n, a, b, mu, xi, eta, k, algo );
+        String params = String.format( "%s,%s,%s,%s,%s,%s", n, a, b, mu, k, algo );
 
         // main metrics
         var completedJobPs = metrics.getCompletedJobsPerSec();

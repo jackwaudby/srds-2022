@@ -1,20 +1,16 @@
 import action.AbortOperationAction;
 import action.ReadyToCommitAction;
-import action.RepairAction;
 import event.AbortOperationEvent;
 import event.ReadyToCommitEvent;
-import event.RepairEvent;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
 
 import action.CommitOperationAction;
 import action.EpochTimeoutAction;
-import action.FailureAction;
 import action.TransactionAction;
 import event.AbstractEvent;
 import event.EpochTimeoutEvent;
 import event.EventType;
-import event.FailureEvent;
 import event.TransactionEvent;
 import event.CommitOperationEvent;
 import state.Cluster;
@@ -51,12 +47,6 @@ public class Main implements Callable<Integer>
     @Option( names = {"-mu", "--transaction"}, description = "Average transaction service rate (ms)" )
     private double transactionServiceRate = 1;
 
-    @Option( names = {"-xi", "--failure"}, description = "Average failure rate (ms)" )
-    private double failureRate = 675000;
-
-    @Option( names = {"-eta", "--repair"}, description = "Average repair rate (ms)" )
-    private double repairRate = 30000;
-
     @Option( names = {"-s", "--seed"}, description = "Fix seed" )
     private String fixSeed = "false";
 
@@ -85,8 +75,6 @@ public class Main implements Callable<Integer>
         config.setCommitOperationRate( commitOperationRate );
         config.setAbortOperationRate( abortOperationRate );
         config.setTransactionServiceRate( transactionServiceRate );
-        config.setFailureRate( failureRate );
-        config.setRepairRate( repairRate );
         config.setFixSeed( Boolean.parseBoolean( fixSeed ) );
         config.setAlgorithm( algorithm );
         config.setPropDistributedTransactions( (double) distTxn / 100.0 );
@@ -112,16 +100,6 @@ public class Main implements Callable<Integer>
             var transactionEvent = new TransactionEvent( rand.generateTransactionServiceTime(), EventType.TRANSACTION_COMPLETED, i, 0 );
             eventList.addEvent( transactionEvent );
         }
-
-        // initial failure event
-        var failedNodeId = rand.generateNodeId();
-        var firstFailureTime = rand.generateNextFailure();
-        firstFailureTime = 1;
-        var failureEvent = new FailureEvent( firstFailureTime, EventType.FAILURE, failedNodeId );
-        eventList.addEvent( failureEvent );
-
-        failureRepairEventList.addEvent( new FailureEvent( firstFailureTime, EventType.FAILURE, failedNodeId ) );
-        LOGGER.debug( String.format( " - next failure/repair at %.5f (ms)", FailureRepairEventList.getInstance().getNextEventTime() ) );
 
         // run simulation
         DateTimeFormatter dtf = DateTimeFormatter.ofPattern( "yyyy/MM/dd HH:mm:ss" );
@@ -164,7 +142,6 @@ public class Main implements Callable<Integer>
 
         while ( clock.getClock() < timeLimit )
         {
-
             AbstractEvent nextEvent = eventList.getNextEvent();
             clock.setClock( nextEvent.getEventTime() );
 
@@ -178,8 +155,6 @@ public class Main implements Callable<Integer>
                     cluster, config, eventList, rand, metrics, failureRepairEventList );
             case ABORT_COMPLETED -> AbortOperationAction.abort( (AbortOperationEvent) nextEvent,
                     cluster, config, eventList, rand, metrics, failureRepairEventList );
-            case FAILURE -> FailureAction.fail( (FailureEvent) nextEvent, cluster, eventList, rand, metrics, failureRepairEventList, config );
-            case REPAIR -> RepairAction.repair( (RepairEvent) nextEvent, cluster, metrics, rand, eventList, failureRepairEventList );
             case READY_TO_COMMIT -> ReadyToCommitAction.ready( (ReadyToCommitEvent) nextEvent, cluster, config, eventList, rand );
             }
         }
