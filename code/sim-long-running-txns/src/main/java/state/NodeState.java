@@ -7,10 +7,4 @@ public enum NodeState
 
     // up and waiting to commit
     READY,
-
-    // in failed commit group
-    IN_FAILED_COMMIT_GROUP,
-
-    // down
-    CRASHED
 }

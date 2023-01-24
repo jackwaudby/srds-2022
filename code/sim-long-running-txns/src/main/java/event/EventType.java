@@ -6,5 +6,4 @@ public enum EventType
     TRANSACTION_COMPLETED,
     READY_TO_COMMIT,
     COMMIT_COMPLETED,
-    ABORT_COMPLETED,
 }

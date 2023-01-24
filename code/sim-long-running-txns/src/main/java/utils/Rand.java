@@ -145,6 +145,6 @@ public class Rand
     {
         var sample = distributedTransactionDistribution.nextDouble();
 
-        return sample < distTxn;
+        return sample < 0.01;
     }
 }

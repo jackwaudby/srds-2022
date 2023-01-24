@@ -9,8 +9,6 @@ import utils.FailureRepairEventList;
 import utils.Metrics;
 import utils.Rand;
 
-import java.util.logging.Logger;
-
 public class AbortOperationAction
 {
     public static void abort( AbortOperationEvent event, Cluster cluster, Config config, EventList eventList, Rand rand, Metrics metrics,
@@ -20,10 +18,9 @@ public class AbortOperationAction
         var thisEventTime = event.getEventTime();
 
         // record latency, lost jobs, and summary of epoch
-        cluster.totalFailure( metrics, thisEventTime );
 
         // reset 2PC ready flags, completed jobs, and lost jobs
-        cluster.resetClusterState( config, metrics );
+        cluster.resetClusterState( config);
 
         // skip or generate next epoch
         Common.skipOrGenerateNextEpoch( thisEventTime, rand, eventList, cluster, config, failureRepairEventList );

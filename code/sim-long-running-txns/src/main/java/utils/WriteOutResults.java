@@ -35,8 +35,7 @@ public class WriteOutResults
         var b = config.getCommitOperationRateInMillis(); // commit/abort delay
         var mu = config.getTransactionServiceRateInMillis(); // transaction service rate
         var k = config.getPropDistributedTransactions() * 100; // proportion of distributed transactions
-        var algo = config.getAlgorithm(); // protocol
-        String params = String.format( "%s,%s,%s,%s,%s,%s", n, a, b, mu, k, algo );
+        String params = String.format( "%s,%s,%s,%s,%s", n, a, b, mu, k );
 
         // main metrics
         var completedJobPs = metrics.getCompletedJobsPerSec();
