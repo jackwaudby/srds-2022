@@ -9,8 +9,6 @@ import utils.Config;
 import utils.EventList;
 import utils.Rand;
 
-import java.util.Objects;
-
 public class TransactionAction {
     public static void execute(TransactionEvent event, Cluster cluster, Config config, EventList eventList, Rand rand) {
         // transaction has completed after its epoch has terminated -- ignore // TODO: problem?
@@ -50,9 +48,11 @@ public class TransactionAction {
     }
 
     private static void generateTransactionCompletionEvent(EventList eventList, Rand rand, int currentEpoch, int thisNodeId, double thisEventTime) {
-        var serviceTime = rand.generateTransactionServiceTime();
-        if (rand.isDistributedTransaction()) {
-            serviceTime = serviceTime + 1;
+        double serviceTime;
+        if (rand.isLongTransaction()) {
+            serviceTime = rand.generateLongTransactionServiceTime();
+        } else {
+            serviceTime = rand.generateShortTransactionServiceTime();
         }
 
         var nextTransactionEventTime = thisEventTime + serviceTime;

@@ -13,9 +13,7 @@ import utils.Rand;
 import java.util.Objects;
 
 public class CommitOperationAction {
-    public static void commit(CommitOperationEvent event, Cluster cluster, Config config, EventList eventList, Rand rand, Metrics metrics,
-                              FailureRepairEventList failureRepairEventList) {
-        // epoch terminates due to failure and abort event completed before the commit event
+    public static void commit(CommitOperationEvent event, Cluster cluster, Config config, EventList eventList, Rand rand, Metrics metrics) {
         var currentEpoch = cluster.getCurrentEpoch();
         var originEpoch = event.getEpoch();
         if (originEpoch < currentEpoch) {
@@ -25,24 +23,13 @@ public class CommitOperationAction {
         var thisEventTime = event.getEventTime();
 
         switch (cluster.getCurrentEpochState()) {
-            // this is only possible if the epoch has been skipped
             case PROCESSING -> {
-
-                // generate the completed jobs in the completed epoch per non-failed node
-                for (int i = 0; i < config.getClusterSize(); i++) {
-                    if (cluster.getNodeState(i) == NodeState.OPERATIONAL) {
-                        cluster.incCompletedJobs(i, rand.getCompletedJobs());
-                    }
-                }
-                cluster.complete(metrics, thisEventTime);
-                cluster.resetClusterState(config);
-                Common.skipOrGenerateNextEpoch(thisEventTime, rand, eventList, cluster, config, failureRepairEventList);
-
+                throw new IllegalStateException("Should not be in this state");
             }
             case COMMITTING -> {
                 cluster.complete(metrics, thisEventTime);
                 cluster.resetClusterState(config);
-                Common.skipOrGenerateNextEpoch(thisEventTime, rand, eventList, cluster, config, failureRepairEventList);
+                Common.generateNextEpoch(thisEventTime, rand, eventList, cluster, config);
             }
             case ABORTING, WAITING -> {
             }

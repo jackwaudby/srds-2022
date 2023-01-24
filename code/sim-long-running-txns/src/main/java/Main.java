@@ -1,28 +1,13 @@
-import action.AbortOperationAction;
-import action.ReadyToCommitAction;
-import event.AbortOperationEvent;
-import event.ReadyToCommitEvent;
-import picocli.CommandLine;
-import picocli.CommandLine.Option;
-
 import action.CommitOperationAction;
 import action.EpochTimeoutAction;
+import action.ReadyToCommitAction;
 import action.TransactionAction;
-import event.AbstractEvent;
-import event.EpochTimeoutEvent;
-import event.EventType;
-import event.TransactionEvent;
-import event.CommitOperationEvent;
-import state.Cluster;
-import utils.Clock;
-
+import event.*;
 import org.apache.log4j.Logger;
-import utils.Config;
-import utils.EventList;
-import utils.FailureRepairEventList;
-import utils.Metrics;
-import utils.Rand;
-import utils.WriteOutResults;
+import picocli.CommandLine;
+import picocli.CommandLine.Option;
+import state.Cluster;
+import utils.*;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -35,16 +20,16 @@ public class Main implements Callable<Integer> {
     private int cluster = 64;
 
     @Option(names = {"-a", "--epoch"}, description = "Epoch timeout (ms)")
-    private int epochTimeout = 100;
+    private int epochTimeout = 10;
 
     @Option(names = {"-b", "--commit"}, description = "Average commit operation rate (ms)")
     private double commitOperationRate = 1.7;
 
-    @Option(names = {"-c", "--abort"}, description = "Average abort operation rate (ms)")
-    private double abortOperationRate = 1.7;
+    @Option(names = {"-mu", "--shortTransaction"}, description = "Average short transaction service rate (ms)")
+    private double shortTransactionServiceRate = 1;
 
-    @Option(names = {"-mu", "--transaction"}, description = "Average transaction service rate (ms)")
-    private double transactionServiceRate = 1;
+    @Option(names = {"-xi", "--longTransaction"}, description = "Average long transaction service rate (ms)")
+    private double longTransactionServiceRate = 1000;
 
     @Option(names = {"-s", "--seed"}, description = "Fix seed")
     private String fixSeed = "false";
@@ -52,11 +37,8 @@ public class Main implements Callable<Integer> {
     @Option(names = {"-d", "--duration"}, description = "Simulation duration (secs)")
     private double timeLimit = 3600;
 
-    @Option(names = {"-m", "--mpt"}, description = "Proportion of distributed transactions")
-    private int distTxn = 10;
-
-    @Option(names = {"-fe", "--fixedEpoch"}, description = "Fixed or random epoch timeout")
-    private String fixedEpochTimeout = "true";
+    @Option(names = {"-m", "--mpt"}, description = "Proportion of long transactions")
+    private double propLongTransactions = 0.1;
 
     @Override
     public Integer call() {
@@ -65,19 +47,16 @@ public class Main implements Callable<Integer> {
         config.setClusterSize(cluster);
         config.setEpochTimeout(epochTimeout);
         config.setCommitOperationRate(commitOperationRate);
-        config.setAbortOperationRate(abortOperationRate);
-        config.setTransactionServiceRate(transactionServiceRate);
+        config.setShortTransactionServiceRate(shortTransactionServiceRate);
+        config.setLongTransactionServiceRate(longTransactionServiceRate);
+        config.setPropLongTransactions(propLongTransactions);
         config.setFixSeed(Boolean.parseBoolean(fixSeed));
-        config.setPropDistributedTransactions((double) distTxn / 100.0);
-        config.setPropLongRunningTransactions(0.1);
-        config.setFixedEpochTimeout(Boolean.parseBoolean(fixedEpochTimeout));
 
         // global variables
         var rand = Rand.getInstance();
         var eventList = EventList.getInstance();
         var metrics = Metrics.getInstance();
         var cluster = Cluster.getInstance();
-        var failureRepairEventList = FailureRepairEventList.getInstance();
 
         // coordinator node initialisation event
         var initEventTime = rand.generateNextEpochTimeout();
@@ -87,7 +66,7 @@ public class Main implements Callable<Integer> {
         // initial transaction events
         var clusterSize = config.getClusterSize();
         for (int i = 0; i < clusterSize; i++) {
-            var transactionEvent = new TransactionEvent(rand.generateTransactionServiceTime(), EventType.TRANSACTION_COMPLETED, i, 0);
+            var transactionEvent = new TransactionEvent(rand.generateShortTransactionServiceTime(), EventType.TRANSACTION_COMPLETED, i, 0);
             eventList.addEvent(transactionEvent);
         }
 
@@ -102,7 +81,7 @@ public class Main implements Callable<Integer> {
         var start = System.currentTimeMillis();
         Clock.getInstance().setSimStartTime(start);
         LOGGER.info("Simulating....");
-        runSimulation(timeLimit, config, rand, eventList, failureRepairEventList);
+        runSimulation(timeLimit, config, rand, eventList);
         var end = System.currentTimeMillis();
         metrics.getSummary(cluster);
         var realTime = (end - start) / 1000.0;
@@ -121,7 +100,7 @@ public class Main implements Callable<Integer> {
         System.exit(exitCode);
     }
 
-    static void runSimulation(double timeLimit, Config config, Rand rand, EventList eventList, FailureRepairEventList failureRepairEventList) {
+    private static void runSimulation(double timeLimit, Config config, Rand rand, EventList eventList) {
         var cluster = Cluster.getInstance();
         var clock = Clock.getInstance();
         var metrics = Metrics.getInstance();
@@ -137,8 +116,8 @@ public class Main implements Callable<Integer> {
                         TransactionAction.execute((TransactionEvent) nextEvent, cluster, config, eventList, rand);
                 case EPOCH_TIMEOUT ->
                         EpochTimeoutAction.timeout(cluster);
-                case COMMIT_COMPLETED -> CommitOperationAction.commit((CommitOperationEvent) nextEvent,
-                        cluster, config, eventList, rand, metrics, failureRepairEventList);
+                case COMMIT_COMPLETED ->
+                        CommitOperationAction.commit((CommitOperationEvent) nextEvent, cluster, config, eventList, rand, metrics);
                 case READY_TO_COMMIT ->
                         ReadyToCommitAction.ready((ReadyToCommitEvent) nextEvent, cluster, config, eventList, rand);
             }

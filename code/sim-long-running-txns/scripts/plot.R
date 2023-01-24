@@ -1,20 +1,14 @@
 suppressPackageStartupMessages(library(ggplot2))
 suppressPackageStartupMessages(library(readr))
 
-setwd("../")
 
-# jack's data
-files = list.files(path = "./data/", pattern = "*.csv")
-raw = data.frame()
-for (file in files) {
-  dat = suppressMessages(read_csv(file = paste0("./data/",file),col_names = TRUE))
-  raw = rbind(raw,dat)
-}
+raw = read_csv(file = "results.csv",col_names = TRUE)
 
 # completed jobs/ms
-p1 = ggplot(data = raw, aes(x = a, y = completedJobPs/1000, group = algo, colour = algo )) +
-  geom_line() + xlab("a") + ylab("completed jobs/ms") + theme_bw()
+p1 = ggplot(data = raw, aes(x = k, y = completedJobPs)) +
+  geom_line() + xlab("a") + ylab("completed jobs/s") + theme_bw()
 p1
+
 ggsave("./graphics/completed-jobs-per-ms.png", p1, width = 8, height = 6, device = "png")
 
 # lost jobs/ms

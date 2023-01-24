@@ -1,4 +1,8 @@
 *target*
 *.csv
 *.iml
-*.idea
+*.idea*
+*.Rproj
+*.Rhistory
+*.Rproj.user
+*compiler.xml
