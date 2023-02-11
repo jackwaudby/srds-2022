@@ -6,3 +6,4 @@
 *.Rhistory
 *.Rproj.user
 *compiler.xml
+.Rproj.user
