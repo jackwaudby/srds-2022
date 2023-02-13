@@ -87,7 +87,7 @@ public class Main implements Callable<Integer> {
         LOGGER.info("Simulating....");
         runSimulation(timeLimit, config, rand, eventList);
         var end = System.currentTimeMillis();
-        metrics.getSummary(cluster);
+        metrics.getSummary();
         var realTime = (end - start) / 1000.0;
         LOGGER.info("Real time (secs): " + String.format("%.5f", realTime));
         LOGGER.info("Simulation completed!");
@@ -120,7 +120,7 @@ public class Main implements Callable<Integer> {
 
             switch (eventType) {
                 case TRANSACTION_COMPLETED ->
-                        TransactionCompletionAction.execute((TransactionCompletionEvent) nextEvent, cluster, config, eventList, rand);
+                        TransactionCompletionAction.execute((TransactionCompletionEvent) nextEvent, cluster, eventList, rand);
                 case NODE_EPOCH_TIMEOUT ->
                         NodeTimeoutAction.timeout((NodeTimeoutEvent) nextEvent, cluster, rand, eventList);
                 case PREPARE_RECEIVED ->
@@ -133,5 +133,6 @@ public class Main implements Callable<Integer> {
 
             LOGGER.debug("");
         }
+        cluster.setStop(clock.getClock());
     }
 }

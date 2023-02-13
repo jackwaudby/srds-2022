@@ -51,4 +51,13 @@ public class Epoch {
     public Set<Dependency> getDependencies() {
         return new HashSet<>(dependencies.values());
     }
+
+    @Override
+    public String toString() {
+        return "{" +
+                "txns=" + completedTransactions +
+                ", leader=" + leader +
+                ", dependencies=" + dependencies +
+                '}';
+    }
 }

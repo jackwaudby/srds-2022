@@ -90,6 +90,10 @@ public class Rand {
     }
 
     public boolean isDistributedTransaction() {
+        if (clusterSize == 1) {
+            return false;
+        }
+
         return distributedTransactionDistribution.nextDouble() < proportionOfDistributedTransactions;
     }
 }

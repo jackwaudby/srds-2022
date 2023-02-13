@@ -15,18 +15,16 @@ import static state.Node.State.COORDINATOR;
 public class TransactionCompletionAction {
     private final static Logger LOGGER = Logger.getLogger(TransactionCompletionAction.class.getName());
 
-    public static void execute(TransactionCompletionEvent event, Cluster cluster, Config config, EventList eventList, Rand rand) {
+    public static void execute(TransactionCompletionEvent event, Cluster cluster, EventList eventList, Rand rand) {
         var thisNodeId = event.getNodeId();
         var thisNode = cluster.getNode(thisNodeId);
         var thisNodeState = thisNode.getState();
+        LOGGER.debug(String.format("   node %s state: %s", thisNodeId, thisNodeState));
 
         switch (thisNodeState) {
             case EXECUTING -> {
                 handleTransactionCompletion(cluster, rand, thisNodeId, thisNode);
-
-                // next transaction completion
-                var thisEventTime = event.getEventTime();
-                generateTransactionCompletionEvent(eventList, rand, thisNodeId, thisEventTime);
+                generateTransactionCompletionEvent(eventList, rand, thisNodeId, event.getEventTime());
             }
 
             case WAITING -> {
@@ -43,6 +41,8 @@ public class TransactionCompletionAction {
                 if (!thisNode.getDependencies().isEmpty()) {
                     LOGGER.debug("    send prepare message to all known dependencies ");
                     for (var dependency : thisNode.getDependencies()) {
+                        LOGGER.debug("    node " + dependency.nodeId());
+
                         var prepareReceivedEventTime = event.getEventTime() + rand.generateNetworkDelayDuration();
                         var thisNodeEpoch = thisNode.getCurrentEpoch();
                         var prepareReceivedEvent = new PrepareReceivedEvent(
@@ -74,7 +74,7 @@ public class TransactionCompletionAction {
                 // has received prepare message from another node, but haven't yet responded because was still working
                 // reply with dependencies and wait for commit message
                 var leader = thisNode.getCurrentLeader();
-                var prepareAckReceivedEventTime =  event.getEventTime() + rand.generateNetworkDelayDuration();
+                var prepareAckReceivedEventTime = event.getEventTime() + rand.generateNetworkDelayDuration();
                 var prepareAckReceivedEvent = new PrepareAckReceivedEvent(
                         prepareAckReceivedEventTime,
                         EventType.PREPARE_ACK_RECEIVED,
@@ -82,6 +82,8 @@ public class TransactionCompletionAction {
                         leader,
                         thisNode.getDependencies());
                 eventList.addEvent(prepareAckReceivedEvent);
+                LOGGER.debug(String.format("   send ACK to current known leader: node %s", leader));
+
             }
 
             case COORDINATOR -> {
@@ -106,7 +108,7 @@ public class TransactionCompletionAction {
         }
     }
 
-     static void generateTransactionCompletionEvent(
+    static void generateTransactionCompletionEvent(
             EventList eventList, Rand rand, int thisNodeId, double thisEventTime) {
 
         // get next transaction completion time

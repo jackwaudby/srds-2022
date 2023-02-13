@@ -3,6 +3,7 @@ package state;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class Node {
     private final int id;
@@ -48,6 +49,10 @@ public class Node {
     }
 
     public void addDependency(int depId, int depEpoch) {
+
+        if (depId == id) {
+            throw new IllegalStateException("Can not have self-dependency");
+        }
         epochs.get(currentEpoch).addDependency(depId, depEpoch);
     }
 
@@ -67,27 +72,44 @@ public class Node {
         epochs.get(currentEpoch).setLeader(newLeader);
     }
 
+    public List<Epoch> getEpochs() {
+        return epochs;
+    }
+
     public void nextEpoch() {
         this.currentEpoch += 1;
         this.epochs.add(currentEpoch, new Epoch(id));
     }
 
     public boolean isMissingDependencies(Set<Dependency> dependencies) {
-        return !epochs.get(currentEpoch).getDependencies().equals(dependencies);
+        var withoutSelf = dependencies.stream().filter(dependency -> dependency.nodeId() != id).collect(Collectors.toSet());
+
+        withoutSelf.removeAll(epochs.get(currentEpoch).getDependencies());
+
+        return !withoutSelf.isEmpty();
     }
 
-    public void updateAcks(Set<Dependency> dependencies) {
-        for (var dependency : dependencies ) {
-            epochs.get(currentEpoch).getDependency(dependency.nodeId()).setAckReceived();
-        }
+    public void updateAcks(int senderId) {
+        epochs.get(currentEpoch).getDependency(senderId).setAckReceived();
     }
 
     public boolean receivedAllAcks() {
         for (var dependency : getDependencies()) {
             if (!dependency.isAckReceived()) {
+                System.out.println(dependency);
                 return false;
             }
         }
         return true;
+    }
+
+    @Override
+    public String toString() {
+        return "Node{" +
+                "id=" + id +
+                ", state=" + state +
+                ", epoch=" + currentEpoch +
+                ", " + epochs.get(currentEpoch) +
+                '}';
     }
 }

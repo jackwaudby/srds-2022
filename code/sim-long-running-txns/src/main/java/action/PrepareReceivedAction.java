@@ -17,6 +17,9 @@ public class PrepareReceivedAction {
         var thisNode = cluster.getNode(thisNodeId);
         var thisNodeState = thisNode.getState();
 
+        LOGGER.debug(String.format("   node %s state: %s", thisNodeId, thisNodeState));
+        LOGGER.debug(String.format("   received from node %s", event.getSenderId()));
+
         switch (thisNodeState) {
             case EXECUTING -> {
                 // switch to WAITING
@@ -30,6 +33,9 @@ public class PrepareReceivedAction {
                 // update leader if the sender has higher id
                 if (thisNode.getCurrentLeader() < event.getSenderId()) {
                     thisNode.setCurrentLeader(event.getSenderId());
+                    LOGGER.debug(String.format("   new leader: node %s", event.getSenderId()));
+                    thisNode.setState(Node.State.FOLLOWER);
+                    LOGGER.debug("   transition to FOLLOWER");
                 }
                 // don't reply as need to wait for inflight transaction to finish
             }

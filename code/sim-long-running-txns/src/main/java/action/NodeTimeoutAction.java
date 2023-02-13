@@ -16,13 +16,14 @@ public class NodeTimeoutAction {
         var thisNodeId = event.getNodeId();
         var node = cluster.getNode(thisNodeId);
         var nodeState = node.getState();
+        LOGGER.debug(String.format("    node %s timed out", thisNodeId));
 
         switch (nodeState) {
             case EXECUTING -> {
                 // Transition to WAITING
                 // Wait for the node to complete its in-flight transaction
                 node.setState(WAITING);
-                LOGGER.debug("    transition to READY");
+                LOGGER.debug("    transition to WAITING");
             }
 
             case WAITING -> {

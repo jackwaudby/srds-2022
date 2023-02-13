@@ -42,4 +42,13 @@ public class Dependency {
     public int hashCode() {
         return Objects.hash(nodeId, epoch);
     }
+
+    @Override
+    public String toString() {
+        return "{" +
+                "nodeId=" + nodeId +
+                ", epoch=" + epoch +
+                ", ackReceived=" + ackReceived +
+                '}';
+    }
 }

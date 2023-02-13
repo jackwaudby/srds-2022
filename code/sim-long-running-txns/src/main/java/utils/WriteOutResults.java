@@ -35,9 +35,8 @@ public class WriteOutResults {
         String main = String.format("%.4f", completedJobPs);
 
         // raw metrics
-        var completedEpochs = metrics.getCompletedEpochs();
         var totalCompletedJobs = metrics.getCompletedJobs();
-        String raw = String.format("%s,%s", completedEpochs, totalCompletedJobs);
+        String raw = String.format("%s", totalCompletedJobs);
 
         BufferedWriter outputStream = null;
         FileWriter fileWriter;

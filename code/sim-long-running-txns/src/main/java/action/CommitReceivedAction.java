@@ -1,12 +1,17 @@
 package action;
 
 import event.CommitReceivedEvent;
+import event.EventType;
+import event.NodeTimeoutEvent;
 import org.apache.log4j.Logger;
 import state.Cluster;
 import utils.Config;
 import utils.EventList;
 import utils.Metrics;
 import utils.Rand;
+
+import static action.TransactionCompletionAction.generateTransactionCompletionEvent;
+import static state.Node.State.EXECUTING;
 
 /**
  * The sender of the commit message is always the coordinator for a given epoch.
@@ -17,10 +22,10 @@ public class CommitReceivedAction {
 
     public static void commitReceived(CommitReceivedEvent event, Cluster cluster, Config config, EventList eventList, Rand rand, Metrics metrics) {
         var thisNodeId = event.getReceiverId();
-        var node = cluster.getNode(thisNodeId);
-        var nodeState = node.getState();
+        var thisNode = cluster.getNode(thisNodeId);
+        var thisNodeState = thisNode.getState();
 
-        switch (nodeState) {
+        switch (thisNodeState) {
             case EXECUTING -> {
                 // Illegal state: Must be either FOLLOWER or COORDINATOR
                 // To have replied with ack must be FOLLOWER
@@ -34,6 +39,17 @@ public class CommitReceivedAction {
 
             case FOLLOWER -> {
                 // Start next epoch
+                thisNode.nextEpoch();
+                thisNode.setState(EXECUTING);
+
+                // next transaction completion
+                var thisEventTime = event.getEventTime();
+                generateTransactionCompletionEvent(eventList, rand, thisNodeId, thisEventTime);
+
+                // next epoch
+                var nextNodeTimeoutEventTime = event.getEventTime() + rand.generateNextEpochTimeout();
+                var epochEvent = new NodeTimeoutEvent(nextNodeTimeoutEventTime, EventType.NODE_EPOCH_TIMEOUT, thisNodeId, thisNode.getCurrentEpoch());
+                eventList.addEvent(epochEvent);
             }
 
             case COORDINATOR -> {
