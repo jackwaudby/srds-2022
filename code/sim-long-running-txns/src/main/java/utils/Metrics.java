@@ -61,9 +61,9 @@ public class Metrics {
         return committedTransactionsDuringFailures;
     }
 
-    public int getCurrentEpoch(Cluster cluster) {
-        return cluster.getCurrentEpoch();
-    }
+//    public int getCurrentEpoch(Cluster cluster) {
+//        return cluster.getCurrentEpoch();
+//    }
 
     public void incCompletedEpochs() {
         this.completedEpochs += 1;
@@ -135,7 +135,7 @@ public class Metrics {
 
     public void getSummary(Cluster cluster) {
         LOGGER.info("\nResults: ");
-        LOGGER.info("  current epoch: " + getCurrentEpoch(cluster));
+//        LOGGER.info("  current epoch: " + getCurrentEpoch(cluster));
         LOGGER.info("  completed epoch(s): " + getCompletedEpochs());
         LOGGER.info("  total jobs: " + (getCompletedJobs() + getTotalLostJobs()));
         LOGGER.info("  cumulative epoch latency: " + terminatedEpochsCumulativeLatency);

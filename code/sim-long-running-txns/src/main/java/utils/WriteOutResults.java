@@ -24,7 +24,7 @@ public class WriteOutResults {
         // parameters
         var n = config.getClusterSize(); // cluster size
         var a = config.getEpochTimeoutInMillis(); // epoch timeout
-        var b = config.getCommitOperationRateInMillis(); // commit/abort delay
+        var b = config.getNetworkDelayRateInMillis(); // commit/abort delay
         var muShort = config.getShortTransactionServiceRateInMillis(); // transaction service rate
         var muLong = config.getLongTransactionServiceRateInMillis(); // transaction service rate
         var k = config.getPropLongTransactions() * 100; // proportion of distributed transactions

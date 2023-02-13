@@ -5,11 +5,11 @@ public class Config {
 
     private static int clusterSize;
     private static double epochTimeout;
-    private static double commitOperationRate;
+    private static double networkDelayRate;
     private static double shortTransactionServiceRate;
     private static double longTransactionServiceRate;
     private static double propLongTransactions;
-
+    private static double propDistributedTransactions;
     private static final long seedValue = 0;
     private static boolean fixSeed = true;
 
@@ -66,16 +66,16 @@ public class Config {
         Config.longTransactionServiceRate = transactionServiceRate;
     }
 
-    public double getCommitOperationRateInMillis() {
-        return commitOperationRate;
+    public double getNetworkDelayRateInMillis() {
+        return networkDelayRate;
     }
 
-    public double getCommitOperationRateInSecs() {
-        return commitOperationRate / 1000.0;
+    public double getNetworkDelayRateInSecs() {
+        return networkDelayRate / 1000.0;
     }
 
     public void setCommitOperationRate(double twoPhaseCommitDelay) {
-        Config.commitOperationRate = twoPhaseCommitDelay;
+        Config.networkDelayRate = twoPhaseCommitDelay;
     }
 
     public long getSeedValue() {
@@ -99,12 +99,20 @@ public class Config {
         Config.propLongTransactions = propLongRunningTransactions;
     }
 
+    public double getPropDistributedTransactions() {
+        return propDistributedTransactions;
+    }
+
+    public void setPropDistributedTransaction(double propDistributedTransactions) {
+        Config.propDistributedTransactions = propDistributedTransactions;
+    }
+
     @Override
     public String toString() {
         return "\n" +
                 "    cluster size: " + clusterSize + "\n" +
                 "    epoch timeout (ms): " + getEpochTimeoutInMillis() + "\n" +
-                "    average commit operation rate (ms): " + getCommitOperationRateInMillis() + "\n" +
+                "    average commit operation rate (ms): " + getNetworkDelayRateInMillis() + "\n" +
                 "    average short transaction service rate (ms): " + getShortTransactionServiceRateInMillis() + "\n" +
                 "    average long transaction service rate (ms): " + getLongTransactionServiceRateInMillis() + "\n" +
                 "    long transactions proportion (%): " + getPropLongTransactions() * 100 + "\n" +

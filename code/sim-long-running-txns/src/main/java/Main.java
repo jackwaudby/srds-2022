@@ -1,7 +1,8 @@
-import action.CommitOperationAction;
-import action.EpochTimeoutAction;
-import action.ReadyToCommitAction;
-import action.TransactionAction;
+import action.CommitReceivedAction;
+import action.NodeTimeoutAction;
+import action.PrepareReceivedAckAction;
+import action.PrepareReceivedAction;
+import action.TransactionCompletionAction;
 import event.*;
 import org.apache.log4j.Logger;
 import picocli.CommandLine;
@@ -22,8 +23,8 @@ public class Main implements Callable<Integer> {
     @Option(names = {"-a", "--epoch"}, description = "Epoch timeout (ms)")
     private int epochTimeout = 10;
 
-    @Option(names = {"-b", "--commit"}, description = "Average commit operation rate (ms)")
-    private double commitOperationRate = 1.7;
+    @Option(names = {"-b", "--commit"}, description = "Average network delay (ms)")
+    private double networkDelayRate = 0.5;
 
     @Option(names = {"-mu", "--shortTransaction"}, description = "Average short transaction service rate (ms)")
     private double shortTransactionServiceRate = 1;
@@ -40,16 +41,20 @@ public class Main implements Callable<Integer> {
     @Option(names = {"-m", "--mpt"}, description = "Proportion of long transactions")
     private double propLongTransactions = 0.1;
 
+    @Option(names = {"-t", "--txn"}, description = "Proportion of distributed transactions")
+    private double propDistributedTransactions = 0.1;
+
     @Override
     public Integer call() {
         // config
         var config = Config.getInstance();
         config.setClusterSize(cluster);
         config.setEpochTimeout(epochTimeout);
-        config.setCommitOperationRate(commitOperationRate);
+        config.setCommitOperationRate(networkDelayRate);
         config.setShortTransactionServiceRate(shortTransactionServiceRate);
         config.setLongTransactionServiceRate(longTransactionServiceRate);
         config.setPropLongTransactions(propLongTransactions);
+        config.setPropDistributedTransaction(propDistributedTransactions);
         config.setFixSeed(Boolean.parseBoolean(fixSeed));
 
         // global variables
@@ -58,16 +63,15 @@ public class Main implements Callable<Integer> {
         var metrics = Metrics.getInstance();
         var cluster = Cluster.getInstance();
 
-        // coordinator node initialisation event
-        var initEventTime = rand.generateNextEpochTimeout();
-        var epochEvent = new EpochTimeoutEvent(initEventTime, EventType.EPOCH_TIMEOUT, 0);
-        eventList.addEvent(epochEvent);
-
-        // initial transaction events
+        // initial transaction events and timeouts
         var clusterSize = config.getClusterSize();
-        for (int i = 0; i < clusterSize; i++) {
-            var transactionEvent = new TransactionEvent(rand.generateShortTransactionServiceTime(), EventType.TRANSACTION_COMPLETED, i, 0);
+        for (int nodeId = 0; nodeId < clusterSize; nodeId++) {
+            var transactionEvent = new TransactionCompletionEvent(rand.generateShortTransactionServiceTime(), EventType.TRANSACTION_COMPLETED, nodeId);
             eventList.addEvent(transactionEvent);
+
+            var initEventTime = rand.generateNextEpochTimeout();
+            var epochEvent = new NodeTimeoutEvent(initEventTime, EventType.NODE_EPOCH_TIMEOUT, nodeId, 0);
+            eventList.addEvent(epochEvent);
         }
 
         // run simulation
@@ -106,21 +110,28 @@ public class Main implements Callable<Integer> {
         var metrics = Metrics.getInstance();
 
         while (clock.getClock() < timeLimit) {
-            AbstractEvent nextEvent = eventList.getNextEvent();
+            var nextEvent = eventList.getNextEvent();
             clock.setClock(nextEvent.getEventTime());
+
+            LOGGER.debug("Event: " + nextEvent.getEventType() + " at " + String.format("%.2f (ms)", nextEvent.getEventTime() * 1000.0));
+            LOGGER.debug("Action(s): ");
 
             var eventType = nextEvent.getEventType();
 
             switch (eventType) {
                 case TRANSACTION_COMPLETED ->
-                        TransactionAction.execute((TransactionEvent) nextEvent, cluster, config, eventList, rand);
-                case EPOCH_TIMEOUT ->
-                        EpochTimeoutAction.timeout(cluster);
-                case COMMIT_COMPLETED ->
-                        CommitOperationAction.commit((CommitOperationEvent) nextEvent, cluster, config, eventList, rand, metrics);
-                case READY_TO_COMMIT ->
-                        ReadyToCommitAction.ready((ReadyToCommitEvent) nextEvent, cluster, config, eventList, rand);
+                        TransactionCompletionAction.execute((TransactionCompletionEvent) nextEvent, cluster, config, eventList, rand);
+                case NODE_EPOCH_TIMEOUT ->
+                        NodeTimeoutAction.timeout((NodeTimeoutEvent) nextEvent, cluster, rand, eventList);
+                case PREPARE_RECEIVED ->
+                        PrepareReceivedAction.prepareReceived((PrepareReceivedEvent) nextEvent, cluster, rand, eventList);
+                case PREPARE_ACK_RECEIVED ->
+                        PrepareReceivedAckAction.prepareAckReceived((PrepareAckReceivedEvent) nextEvent, cluster, rand, eventList);
+                case COMMIT_RECEIVED ->
+                        CommitReceivedAction.commitReceived((CommitReceivedEvent) nextEvent, cluster, config, eventList, rand, metrics);
             }
+
+            LOGGER.debug("");
         }
     }
 }

@@ -1,9 +1,9 @@
 package event;
 
-public enum EventType
-{
-    EPOCH_TIMEOUT,
+public enum EventType {
+    NODE_EPOCH_TIMEOUT,
     TRANSACTION_COMPLETED,
-    READY_TO_COMMIT,
-    COMMIT_COMPLETED,
+    PREPARE_RECEIVED,
+    PREPARE_ACK_RECEIVED,
+    COMMIT_RECEIVED
 }
