@@ -36,6 +36,10 @@ public class Node {
         FOLLOWER,
     }
 
+    public int getId() {
+        return id;
+    }
+
     public State getState() {
         return state;
     }
