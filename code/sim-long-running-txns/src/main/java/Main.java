@@ -30,7 +30,7 @@ public class Main implements Callable<Integer> {
     private double shortTransactionServiceRate = 1;
 
     @Option(names = {"-lt", "--longTransactionRate"}, description = "Average long transaction service rate (ms)")
-    private double longTransactionServiceRate = 1000;
+    private double longTransactionServiceRate = 10;
 
     @Option(names = {"-s", "--fixSeed"}, description = "Fix seed")
     private String fixSeed = "false";

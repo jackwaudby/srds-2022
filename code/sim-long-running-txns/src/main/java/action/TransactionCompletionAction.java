@@ -10,6 +10,7 @@ import org.apache.log4j.Logger;
 
 import static state.Node.State.EXECUTING;
 import static state.Node.State.COORDINATOR;
+import static state.Node.State.FOLLOWER;
 
 public class TransactionCompletionAction {
     private final static Logger LOGGER = Logger.getLogger(TransactionCompletionAction.class.getName());
@@ -29,6 +30,8 @@ public class TransactionCompletionAction {
             case WAITING -> {
                 // if received a prepare whilst waiting to finish a txn then I won't be the leader
                 if (thisNode.getCurrentLeader() != thisNodeId) {
+                    thisNode.setState(FOLLOWER);
+
                     var leader = thisNode.getCurrentLeader();
                     var prepareAckReceivedEventTime = event.getEventTime() + rand.generateNetworkDelayDuration();
                     var prepareAckReceivedEvent = new PrepareAckReceivedEvent(

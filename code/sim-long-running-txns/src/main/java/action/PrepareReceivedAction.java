@@ -50,7 +50,7 @@ public class PrepareReceivedAction {
                 if (thisNode.getCurrentLeader() < event.getSenderId()) {
                     thisNode.setCurrentLeader(event.getSenderId());
                     LOGGER.debug(String.format("   new leader: node %s", event.getSenderId()));
-                    thisNode.setState(Node.State.FOLLOWER);
+//                    thisNode.setState(Node.State.FOLLOWER);
                     LOGGER.debug("   transition to FOLLOWER");
 
                     updateDependencies(event, thisNodeId, thisNode);
