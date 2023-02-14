@@ -100,7 +100,6 @@ public class Node {
     public boolean receivedAllAcks() {
         for (var dependency : getDependencies()) {
             if (!dependency.isAckReceived()) {
-                System.out.println(dependency);
                 return false;
             }
         }

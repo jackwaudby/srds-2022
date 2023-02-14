@@ -3,7 +3,6 @@ package action;
 import event.*;
 import state.Cluster;
 import state.Node;
-import utils.Config;
 import utils.EventList;
 import utils.Rand;
 
@@ -28,45 +27,67 @@ public class TransactionCompletionAction {
             }
 
             case WAITING -> {
-                // completed all in-flight work
-                // this means that my local epoch has timed out and nobody else has tried to commit this epoch
-                handleTransactionCompletion(cluster, rand, thisNodeId, thisNode);
-
-                // transition to coordinator
-                thisNode.setState(COORDINATOR);
-                LOGGER.debug(String.format("    %s", thisNode));
-                LOGGER.debug("    transition to COORDINATOR");
-
-                // send prepare message to all known dependencies
-                if (!thisNode.getDependencies().isEmpty()) {
-                    LOGGER.debug("    send prepare message to all known dependencies ");
-                    for (var dependency : thisNode.getDependencies()) {
-                        LOGGER.debug("    node " + dependency.nodeId());
-
-                        var prepareReceivedEventTime = event.getEventTime() + rand.generateNetworkDelayDuration();
-                        var thisNodeEpoch = thisNode.getCurrentEpoch();
-                        var prepareReceivedEvent = new PrepareReceivedEvent(
-                                prepareReceivedEventTime,
-                                EventType.PREPARE_RECEIVED,
-                                thisNodeId,
-                                dependency.nodeId(),
-                                thisNodeEpoch);
-                        eventList.addEvent(prepareReceivedEvent);
-                    }
+                // if received a prepare whilst waiting to finish a txn then I won't be the leader
+                if (thisNode.getCurrentLeader() != thisNodeId) {
+                    var leader = thisNode.getCurrentLeader();
+                    var prepareAckReceivedEventTime = event.getEventTime() + rand.generateNetworkDelayDuration();
+                    var prepareAckReceivedEvent = new PrepareAckReceivedEvent(
+                            prepareAckReceivedEventTime,
+                            EventType.PREPARE_ACK_RECEIVED,
+                            thisNodeId,
+                            leader,
+                            thisNode.getDependencies());
+                    eventList.addEvent(prepareAckReceivedEvent);
+                    LOGGER.debug(String.format("   send ACK to current known leader: node %s", leader));
                 } else {
-                    LOGGER.debug("    no dependencies, move to next epoch");
-                    LOGGER.debug("    transition to EXECUTING");
-                    thisNode.setState(EXECUTING);
-                    thisNode.nextEpoch();
 
-                    // next transaction completion
-                    var thisEventTime = event.getEventTime();
-                    generateTransactionCompletionEvent(eventList, rand, thisNodeId, thisEventTime);
+                    // completed all in-flight work
+                    // this means that my local epoch has timed out and nobody else has tried to commit this epoch
+                    handleTransactionCompletion(cluster, rand, thisNodeId, thisNode);
 
-                    // next epoch
-                    var nextNodeTimeoutEventTime = event.getEventTime() + rand.generateNextEpochTimeout();
-                    var epochEvent = new NodeTimeoutEvent(nextNodeTimeoutEventTime, EventType.NODE_EPOCH_TIMEOUT, thisNodeId, thisNode.getCurrentEpoch());
-                    eventList.addEvent(epochEvent);
+                    // transition to coordinator
+                    thisNode.setState(COORDINATOR);
+
+                    if (thisNode.getCurrentLeader() != thisNodeId) {
+                        throw new IllegalStateException("Should think self is leader");
+                    }
+
+                    LOGGER.debug(String.format("    %s", thisNode));
+                    LOGGER.debug("    transition to COORDINATOR");
+
+                    // send prepare message to all known dependencies
+                    if (!thisNode.getDependencies().isEmpty()) {
+                        LOGGER.debug("    send prepare message to all known dependencies ");
+                        for (var dependency : thisNode.getDependencies()) {
+
+                            var prepareReceivedEventTime = event.getEventTime() + rand.generateNetworkDelayDuration();
+                            var thisNodeEpoch = thisNode.getCurrentEpoch();
+                            var prepareReceivedEvent = new PrepareReceivedEvent(
+                                    prepareReceivedEventTime,
+                                    EventType.PREPARE_RECEIVED,
+                                    thisNodeId,
+                                    dependency.nodeId(),
+                                    thisNodeEpoch,
+                                    thisNode.getDependencies() );
+                            eventList.addEvent(prepareReceivedEvent);
+                            LOGGER.debug(String.format("    node %s at %.2f", dependency.nodeId(), prepareReceivedEventTime * 1000.0));
+
+                        }
+                    } else {
+                        LOGGER.debug("    no dependencies, move to next epoch");
+                        LOGGER.debug("    transition to EXECUTING");
+                        thisNode.setState(EXECUTING);
+                        thisNode.nextEpoch();
+
+                        // next transaction completion
+                        var thisEventTime = event.getEventTime();
+                        generateTransactionCompletionEvent(eventList, rand, thisNodeId, thisEventTime);
+
+                        // next epoch
+                        var nextNodeTimeoutEventTime = event.getEventTime() + rand.generateNextEpochTimeout();
+                        var epochEvent = new NodeTimeoutEvent(nextNodeTimeoutEventTime, EventType.NODE_EPOCH_TIMEOUT, thisNodeId, thisNode.getCurrentEpoch());
+                        eventList.addEvent(epochEvent);
+                    }
                 }
             }
 
@@ -83,6 +104,7 @@ public class TransactionCompletionAction {
                         thisNode.getDependencies());
                 eventList.addEvent(prepareAckReceivedEvent);
                 LOGGER.debug(String.format("   send ACK to current known leader: node %s", leader));
+                LOGGER.debug("   sent dependencies " + thisNode.getDependencies());
 
             }
 

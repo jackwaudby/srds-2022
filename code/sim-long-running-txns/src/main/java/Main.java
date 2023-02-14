@@ -17,31 +17,31 @@ import java.util.concurrent.Callable;
 public class Main implements Callable<Integer> {
     private final static Logger LOGGER = Logger.getLogger(Main.class.getName());
 
-    @Option(names = {"-n", "--cluster"}, description = "Cluster size")
+    @Option(names = {"-c", "--clusterSize"}, description = "Cluster size")
     private int cluster = 64;
 
-    @Option(names = {"-a", "--epoch"}, description = "Epoch timeout (ms)")
+    @Option(names = {"-e", "--epochTimeout"}, description = "Epoch timeout (ms)")
     private int epochTimeout = 10;
 
-    @Option(names = {"-b", "--commit"}, description = "Average network delay (ms)")
+    @Option(names = {"-n", "--networkDelay"}, description = "Average network delay (ms)")
     private double networkDelayRate = 0.5;
 
-    @Option(names = {"-mu", "--shortTransaction"}, description = "Average short transaction service rate (ms)")
+    @Option(names = {"-st", "--shortTransactionRate"}, description = "Average short transaction service rate (ms)")
     private double shortTransactionServiceRate = 1;
 
-    @Option(names = {"-xi", "--longTransaction"}, description = "Average long transaction service rate (ms)")
+    @Option(names = {"-lt", "--longTransactionRate"}, description = "Average long transaction service rate (ms)")
     private double longTransactionServiceRate = 1000;
 
-    @Option(names = {"-s", "--seed"}, description = "Fix seed")
+    @Option(names = {"-s", "--fixSeed"}, description = "Fix seed")
     private String fixSeed = "false";
 
     @Option(names = {"-d", "--duration"}, description = "Simulation duration (secs)")
     private double timeLimit = 3600;
 
-    @Option(names = {"-m", "--mpt"}, description = "Proportion of long transactions")
+    @Option(names = {"-pl", "--propLongTransaction"}, description = "Proportion of long transactions")
     private double propLongTransactions = 0.1;
 
-    @Option(names = {"-t", "--txn"}, description = "Proportion of distributed transactions")
+    @Option(names = {"-pd", "--propDistributedTransaction"}, description = "Proportion of distributed transactions")
     private double propDistributedTransactions = 0.1;
 
     @Override

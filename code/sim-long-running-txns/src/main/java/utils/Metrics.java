@@ -35,10 +35,9 @@ public class Metrics {
 
     public void getSummary() {
         LOGGER.info("\nResults: ");
-        LOGGER.info("  completed jobs: " + completedJobs);
-        LOGGER.info("  cumulative epoch latency: " + getCumulativeLatency());
-        LOGGER.info(String.format("  complete jobs/s: %.2f ", getCompletedJobsPerSec()));
-
-        Cluster.getInstance().getNodes().forEach(node -> node.getEpochs().forEach(epoch -> System.out.printf("Node: %s, epoch: %s\n", node.getId(), epoch)));
+        LOGGER.info("  completed txns: " + completedJobs);
+        LOGGER.info("  cumulative latency: " + getCumulativeLatency());
+        LOGGER.info(String.format("  completed txn/s: %.2f ", getCompletedJobsPerSec()));
+//        Cluster.getInstance().getNodes().forEach(node -> node.getEpochs().forEach(epoch -> System.out.printf("Node: %s, epoch: %s\n", node.getId(), epoch)));
     }
 }

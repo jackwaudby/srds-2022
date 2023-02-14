@@ -24,10 +24,13 @@ public class NodeTimeoutAction {
                 // Wait for the node to complete its in-flight transaction
                 node.setState(WAITING);
                 LOGGER.debug("    transition to WAITING");
+                LOGGER.debug("    known dependencies: " + node.getDependencies());
+
             }
 
             case WAITING -> {
                 // Already received prepare message
+                LOGGER.debug("    already WAITING");
                 // Do nothing -- ignore local timeout
             }
 

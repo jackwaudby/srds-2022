@@ -7,13 +7,13 @@ import event.PrepareAckReceivedEvent;
 import event.PrepareReceivedEvent;
 import org.apache.log4j.Logger;
 import state.Cluster;
+import state.Dependency;
 import utils.EventList;
 import utils.Rand;
 
 import static action.TransactionCompletionAction.generateTransactionCompletionEvent;
 import static event.EventType.COMMIT_RECEIVED;
 import static state.Node.State.EXECUTING;
-import static state.Node.State.WAITING;
 
 public class PrepareReceivedAckAction {
 
@@ -25,6 +25,15 @@ public class PrepareReceivedAckAction {
         var thisNodeState = thisNode.getState();
 
         LOGGER.debug(String.format("   node %s state: %s", thisNodeId, thisNodeState));
+        LOGGER.debug(String.format("   %s", event.getDependencies()));
+        LOGGER.debug(String.format("   from node %s", event.getSenderId()));
+
+        if (event.getDependencies().stream().filter(dependency -> dependency.nodeId() == thisNodeId).map(Dependency::epoch).toList().get(0) < thisNode.getCurrentEpoch()) {
+            //throw new IllegalStateException("Stale message");
+            LOGGER.debug(String.format("   stale message from node %s", event.getSenderId()));
+
+            return;
+        }
 
         switch (thisNodeState) {
             case EXECUTING, WAITING -> {
@@ -45,6 +54,8 @@ public class PrepareReceivedAckAction {
                         if (!thisNode.getDependencies().contains(expectedDependency)) {
                             // do not add self dependencies / send to self
                             if (expectedDependency.nodeId() != thisNodeId) {
+                                thisNode.addDependency(expectedDependency.nodeId(), expectedDependency.epoch());
+
                                 var prepareReceivedEventTime = event.getEventTime() + rand.generateNetworkDelayDuration();
                                 var thisNodeEpoch = thisNode.getCurrentEpoch();
                                 var prepareReceivedEvent = new PrepareReceivedEvent(
@@ -52,10 +63,10 @@ public class PrepareReceivedAckAction {
                                         EventType.PREPARE_RECEIVED,
                                         thisNodeId,
                                         expectedDependency.nodeId(),
-                                        thisNodeEpoch);
+                                        thisNodeEpoch, thisNode.getDependencies());
                                 eventList.addEvent(prepareReceivedEvent);
+                                LOGGER.debug("   send prepare to node " + expectedDependency.nodeId());
 
-                                thisNode.addDependency(expectedDependency.nodeId(), expectedDependency.epoch());
                             }
                         }
                     }
@@ -63,8 +74,13 @@ public class PrepareReceivedAckAction {
 
                 thisNode.updateAcks(event.getSenderId());
 
+                LOGGER.debug("   ack received from node " + event.getSenderId());
+
                 // If received all acks then send commit message and begin next epoch
                 if (thisNode.receivedAllAcks()) {
+
+                    LOGGER.debug("   received all acks");
+
                     for (var dependency : thisNode.getDependencies()) {
                         var commitReceivedEventTime = event.getEventTime() + rand.generateNetworkDelayDuration();
                         var commitReceivedEvent = new CommitReceivedEvent(
@@ -78,6 +94,7 @@ public class PrepareReceivedAckAction {
 
                     thisNode.nextEpoch();
                     thisNode.setState(EXECUTING);
+                    LOGGER.debug("   transition to EXECUTING");
 
                     // next transaction completion
                     var thisEventTime = event.getEventTime();

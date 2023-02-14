@@ -24,6 +24,7 @@ public class CommitReceivedAction {
         var thisNodeId = event.getReceiverId();
         var thisNode = cluster.getNode(thisNodeId);
         var thisNodeState = thisNode.getState();
+        LOGGER.debug(String.format("   node %s state: %s", thisNodeId, thisNodeState));
 
         switch (thisNodeState) {
             case EXECUTING -> {
