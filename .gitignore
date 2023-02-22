@@ -1,0 +1,9 @@
+*target*
+*.csv
+*.iml
+*.idea*
+*.Rproj
+*.Rhistory
+*.Rproj.user
+*compiler.xml
+.Rproj.user
