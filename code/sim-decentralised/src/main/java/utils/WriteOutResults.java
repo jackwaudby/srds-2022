@@ -9,7 +9,9 @@ public class WriteOutResults {
 
     public static void writeOutResults(Config config, Metrics metrics, double realTime, double simulationTime) {
 
-        String[] headers = {"n", "a", "b", "muS", "muL", "k", "completedJobPs", "completedEp", "totalCompletedJobs", "realTime", "simTime"};
+        String[] headers = {"cluster", "epochTimeout", "networkDelay", "shortTransactionServiceRate",
+                "longTransactionServiceRate", "propLongTransactions", "propDistributedTransactions", "throughput",
+                "realTime", "simTime"};
 
         StringBuilder headerStringBuilder = new StringBuilder();
         for (String header : headers) {
@@ -22,27 +24,26 @@ public class WriteOutResults {
         }
 
         // parameters
-        var n = config.getClusterSize(); // cluster size
-        var a = config.getEpochTimeoutInMillis(); // epoch timeout
-        var b = config.getNetworkDelayRateInMillis(); // commit/abort delay
-        var muShort = config.getShortTransactionServiceRateInMillis(); // transaction service rate
-        var muLong = config.getLongTransactionServiceRateInMillis(); // transaction service rate
-        var k = config.getPropLongTransactions() * 100; // proportion of distributed transactions
-        String params = String.format("%s,%s,%s,%s,%s,%s", n, a, b, muShort, muLong, k);
+        var cluster = config.getClusterSize();
+        var epochTimeout = config.getEpochTimeoutInMillis();
+        var networkDelay = config.getNetworkDelayRateInMillis();
+        var shortTransactionServiceRate = config.getShortTransactionServiceRateInMillis();
+        var longTransactionServiceRate = config.getLongTransactionServiceRateInMillis();
+        var propLongTransactions = config.getPropLongTransactions() * 100;
+        var propDistributedTransactions = config.getPropDistributedTransactions() * 100;
+
+        String params = String.format("%s,%s,%s,%s,%s,%s,%s", cluster, epochTimeout, networkDelay,
+                shortTransactionServiceRate, longTransactionServiceRate, propLongTransactions, propDistributedTransactions);
 
         // main metrics
         var completedJobPs = metrics.getCompletedJobsPerSec();
         String main = String.format("%.4f", completedJobPs);
 
-        // raw metrics
-        var totalCompletedJobs = metrics.getCompletedJobs();
-        String raw = String.format("%s", totalCompletedJobs);
-
         BufferedWriter outputStream = null;
         FileWriter fileWriter;
         try {
             File file = new File("results.csv");
-            String format = String.format("%s,%s,%s,%.4f,%.4f", params, main, raw, realTime, simulationTime);
+            String format = String.format("%s,%s,%.4f,%.4f", params, main, realTime, simulationTime);
             if (!file.exists()) {
                 fileWriter = new FileWriter(file, true);
                 outputStream = new BufferedWriter(fileWriter);
