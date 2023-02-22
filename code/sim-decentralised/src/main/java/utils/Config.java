@@ -90,7 +90,6 @@ public class Config {
         Config.fixSeed = fixSeed;
     }
 
-
     public double getPropLongTransactions() {
         return propLongTransactions;
     }
@@ -112,10 +111,11 @@ public class Config {
         return "\n" +
                 "    cluster size: " + clusterSize + "\n" +
                 "    epoch timeout (ms): " + getEpochTimeoutInMillis() + "\n" +
-                "    average commit operation rate (ms): " + getNetworkDelayRateInMillis() + "\n" +
+                "    average network delay (ms): " + getNetworkDelayRateInMillis() + "\n" +
                 "    average short transaction service rate (ms): " + getShortTransactionServiceRateInMillis() + "\n" +
                 "    average long transaction service rate (ms): " + getLongTransactionServiceRateInMillis() + "\n" +
                 "    long transactions proportion (%): " + getPropLongTransactions() * 100 + "\n" +
+                "    distributed transactions proportion (%): " + getPropDistributedTransactions() * 100 + "\n" +
                 "    set seed: " + fixSeed;
     }
 }

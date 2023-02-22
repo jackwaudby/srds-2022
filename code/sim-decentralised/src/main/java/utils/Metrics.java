@@ -8,9 +8,6 @@ public class Metrics {
 
     private static final Metrics instance = new Metrics();
 
-    private long completedJobs;
-
-
     private Metrics() {
     }
 
@@ -19,10 +16,15 @@ public class Metrics {
     }
 
     public long getCompletedJobs() {
-        Cluster.getInstance().getNodes().forEach(node ->
-                node.getEpochs().forEach(epoch -> completedJobs += epoch.getCompletedTransactions()));
-
-        return completedJobs;
+        var bucket = 0;
+        var nodes = Cluster.getInstance().getNodes();
+        for (var node : nodes) {
+            var epochs = node.getEpochs();
+            for (var epoch : epochs) {
+                bucket += epoch.getCompletedTransactions();
+            }
+        }
+        return bucket;
     }
 
     public double getCumulativeLatency() {
@@ -35,9 +37,8 @@ public class Metrics {
 
     public void getSummary() {
         LOGGER.info("\nResults: ");
-        LOGGER.info("  completed txns: " + completedJobs);
+        LOGGER.info("  completed transactions: " +  getCompletedJobs());
         LOGGER.info("  cumulative latency: " + getCumulativeLatency());
-//        LOGGER.info(String.format("  completed txn/s: %.2f ", getCompletedJobsPerSec()));
-//        Cluster.getInstance().getNodes().forEach(node -> node.getEpochs().forEach(epoch -> System.out.printf("Node: %s, epoch: %s\n", node.getId(), epoch)));
+        LOGGER.info(String.format("  completed txn/s: %.2f ", getCompletedJobsPerSec()));
     }
 }
