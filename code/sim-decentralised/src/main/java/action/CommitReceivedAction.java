@@ -20,42 +20,29 @@ import static state.Node.State.EXECUTING;
 public class CommitReceivedAction {
     private final static Logger LOGGER = Logger.getLogger(CommitReceivedAction.class.getName());
 
-    public static void commitReceived(CommitReceivedEvent event, Cluster cluster, Config config, EventList eventList, Rand rand, Metrics metrics) {
+    public static void commitReceived(CommitReceivedEvent event, Cluster cluster, EventList eventList, Rand rand) {
         var thisNodeId = event.getReceiverId();
         var thisNode = cluster.getNode(thisNodeId);
+
         var thisNodeState = thisNode.getState();
-        LOGGER.debug(String.format("   node %s state: %s", thisNodeId, thisNodeState));
+        LOGGER.debug(String.format("    Node %s state: %s", thisNodeId, thisNodeState));
 
         switch (thisNodeState) {
-            case EXECUTING -> {
-                // Illegal state: Must be either FOLLOWER or COORDINATOR
-                // To have replied with ack must be FOLLOWER
-
+            case WAITING, EXECUTING,COORDINATOR-> {
+                throw new IllegalStateException("Should be FOLLOWER to receive a commit message");
             }
-
-            case WAITING -> {
-                // Illegal state: Must be either FOLLOWER or COORDINATOR
-                // To have replied with ack must be FOLLOWER
-            }
-
             case FOLLOWER -> {
-                // Start next epoch
                 thisNode.nextEpoch();
                 thisNode.setState(EXECUTING);
+                LOGGER.debug("   Transition to EXECUTING");
 
-                // next transaction completion
                 var thisEventTime = event.getEventTime();
-                generateTransactionCompletionEvent(eventList, rand, thisNodeId, thisEventTime);
+                generateTransactionCompletionEvent(eventList, rand, thisNodeId, thisEventTime, thisNode.getCurrentEpoch());
 
-                // next epoch
-                var nextNodeTimeoutEventTime = event.getEventTime() + rand.generateNextEpochTimeout();
-                var epochEvent = new NodeTimeoutEvent(nextNodeTimeoutEventTime, EventType.NODE_EPOCH_TIMEOUT, thisNodeId, thisNode.getCurrentEpoch());
+                var thisNodeNextTimeoutEventTime = event.getEventTime() + rand.generateNextEpochTimeout();
+                var epochEvent = new NodeTimeoutEvent(thisNodeNextTimeoutEventTime, EventType.NODE_EPOCH_TIMEOUT, thisNodeId, thisNode.getCurrentEpoch());
                 eventList.addEvent(epochEvent);
-            }
-
-            case COORDINATOR -> {
-                // Illegal state: Must be either FOLLOWER or COORDINATOR
-                // To have replied with ack must be FOLLOWER
+                LOGGER.debug(String.format("   Generate NODE_EPOCH_TIMEOUT on node %s at %.2fms", thisNodeId, thisNodeNextTimeoutEventTime * 1000.0));
             }
         }
     }

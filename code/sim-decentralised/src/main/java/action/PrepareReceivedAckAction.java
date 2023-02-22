@@ -8,12 +8,15 @@ import event.PrepareReceivedEvent;
 import org.apache.log4j.Logger;
 import state.Cluster;
 import state.Dependency;
+import state.Node;
 import utils.EventList;
 import utils.Rand;
 
+import static action.PrepareReceivedAction.isPrepareMessageForOldEpoch;
 import static action.TransactionCompletionAction.generateTransactionCompletionEvent;
 import static event.EventType.COMMIT_RECEIVED;
 import static state.Node.State.EXECUTING;
+import static state.Node.State.FOLLOWER;
 
 public class PrepareReceivedAckAction {
 
@@ -22,34 +25,22 @@ public class PrepareReceivedAckAction {
     public static void prepareAckReceived(PrepareAckReceivedEvent event, Cluster cluster, Rand rand, EventList eventList) {
         var thisNodeId = event.getReceiverId();
         var thisNode = cluster.getNode(thisNodeId);
+        var senderNodeId = event.getSenderId();
+
+        if (isStaleMessage(event, thisNodeId, thisNode, senderNodeId)) return;
+
         var thisNodeState = thisNode.getState();
-
-        LOGGER.debug(String.format("   node %s state: %s", thisNodeId, thisNodeState));
-        LOGGER.debug(String.format("   %s", event.getDependencies()));
-        LOGGER.debug(String.format("   from node %s", event.getSenderId()));
-
-        if (event.getDependencies().stream().filter(dependency -> dependency.nodeId() == thisNodeId).map(Dependency::epoch).toList().get(0) < thisNode.getCurrentEpoch()) {
-            //throw new IllegalStateException("Stale message");
-            LOGGER.debug(String.format("   stale message from node %s", event.getSenderId()));
-
-            return;
-        }
+        LOGGER.debug(String.format("    Node %s state: %s", thisNodeId, thisNodeState));
 
         switch (thisNodeState) {
-            case EXECUTING, WAITING -> {
-                // Illegal state: Must be either FOLLOWER or COORDINATOR
-                throw new IllegalStateException(String.format("Node state: %s", thisNodeState));
-
-            }
-            case FOLLOWER -> {
-                // Another node has become COORDINATOR
-                // Ignore this event
-            }
+            case EXECUTING, WAITING ->
+                    throw new IllegalStateException("Should be FOLLOWER or COORDINATOR to receive a prepare ack message");
+            case FOLLOWER -> LOGGER.debug(String.format("   Ignore prepare ack message. Another node has %s has become leader", senderNodeId));
 
             case COORDINATOR -> {
                 // if missing any dependencies, update dependencies and send them prepare
                 if (thisNode.isMissingDependencies(event.getDependencies())) {
-                    LOGGER.debug("   missing dependencies");
+                    LOGGER.debug("   Missing dependencies");
                     for (var expectedDependency : event.getDependencies()) {
                         if (!thisNode.getDependencies().contains(expectedDependency)) {
                             // do not add self dependencies / send to self
@@ -65,8 +56,7 @@ public class PrepareReceivedAckAction {
                                         expectedDependency.nodeId(),
                                         thisNodeEpoch, thisNode.getDependencies());
                                 eventList.addEvent(prepareReceivedEvent);
-                                LOGGER.debug("   send prepare to node " + expectedDependency.nodeId());
-
+                                LOGGER.debug("   Send prepare to node " + expectedDependency.nodeId());
                             }
                         }
                     }
@@ -98,17 +88,27 @@ public class PrepareReceivedAckAction {
 
                     // next transaction completion
                     var thisEventTime = event.getEventTime();
-                    generateTransactionCompletionEvent(eventList, rand, thisNodeId, thisEventTime);
+                    generateTransactionCompletionEvent(eventList, rand, thisNodeId, thisEventTime, thisNode.getCurrentEpoch());
 
-                    // next epoch
-                    var nextNodeTimeoutEventTime = event.getEventTime() + rand.generateNextEpochTimeout();
-                    var epochEvent = new NodeTimeoutEvent(nextNodeTimeoutEventTime, EventType.NODE_EPOCH_TIMEOUT, thisNodeId, thisNode.getCurrentEpoch());
+                    var thisNodeNextTimeoutEventTime = event.getEventTime() + rand.generateNextEpochTimeout();
+                    var epochEvent = new NodeTimeoutEvent(thisNodeNextTimeoutEventTime, EventType.NODE_EPOCH_TIMEOUT, thisNodeId, thisNode.getCurrentEpoch());
                     eventList.addEvent(epochEvent);
+                    LOGGER.debug(String.format("   Generate NODE_EPOCH_TIMEOUT on node %s at %.2fms", thisNodeId, thisNodeNextTimeoutEventTime * 1000.0));
                 } else {
-                    LOGGER.debug("   not received all acks");
+                    LOGGER.debug("   Not received all acks");
                 }
 
             }
         }
+    }
+
+    private static boolean isStaleMessage(PrepareAckReceivedEvent event, int thisNodeId, Node thisNode, int senderNodeId) {
+        var thisNodeExpectedEpoch = event.getDependencies().stream().filter(dependency -> dependency.nodeId() == thisNodeId).map(Dependency::epoch).toList().get(0);
+        var thisNodeCurrentEpoch = thisNode.getCurrentEpoch();
+        if (isPrepareMessageForOldEpoch(thisNodeExpectedEpoch, thisNodeCurrentEpoch)) {
+            LOGGER.debug(String.format("   Ignore stale prepare message from node %s", senderNodeId));
+            return true;
+        }
+        return false;
     }
 }

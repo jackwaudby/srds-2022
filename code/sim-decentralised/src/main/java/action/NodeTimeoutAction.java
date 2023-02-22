@@ -3,8 +3,6 @@ package action;
 import event.NodeTimeoutEvent;
 import org.apache.log4j.Logger;
 import state.Cluster;
-import utils.EventList;
-import utils.Rand;
 
 import static state.Node.State.WAITING;
 
@@ -12,37 +10,32 @@ public class NodeTimeoutAction {
 
     private final static Logger LOGGER = Logger.getLogger(NodeTimeoutAction.class.getName());
 
-    public static void timeout(NodeTimeoutEvent event, Cluster cluster, Rand rand, EventList eventList) {
+    public static void timeout(NodeTimeoutEvent event, Cluster cluster) {
         var thisNodeId = event.getNodeId();
-        var node = cluster.getNode(thisNodeId);
-        var nodeState = node.getState();
-        LOGGER.debug(String.format("    node %s timed out", thisNodeId));
+        var thisNode = cluster.getNode(thisNodeId);
+        var thisNodeCurrentEpoch = thisNode.getCurrentEpoch();
+        LOGGER.debug(String.format("    epoch %s on node %s has timed out", thisNodeCurrentEpoch, thisNodeId));
 
-        switch (nodeState) {
+        var epochAssociatedWithTimeout = event.getEpoch();
+        if (epochAssociatedWithTimeout != thisNodeCurrentEpoch) {
+            LOGGER.debug(String.format("    Ignore NodeTimeoutEvent for an old epoch. Current epoch: %s. Epoch associated with timeout: %s", thisNodeCurrentEpoch, epochAssociatedWithTimeout));
+            return;
+        }
+
+        var thisNodeState = thisNode.getState();
+        LOGGER.debug(String.format("    node %s state: %s", thisNodeId, thisNodeState));
+
+        switch (thisNodeState) {
             case EXECUTING -> {
-                // Transition to WAITING
-                // Wait for the node to complete its in-flight transaction
-                node.setState(WAITING);
-                LOGGER.debug("    transition to WAITING");
-                LOGGER.debug("    known dependencies: " + node.getDependencies());
-
+                thisNode.setState(WAITING);
+                LOGGER.debug("    Transition to WAITING (must complete in-flight transactions).");
+                var thisNodeKnownDependencies = thisNode.getDependencies();
+                LOGGER.debug(String.format("    Current leader in epoch %s: %s", thisNodeCurrentEpoch, thisNode.getCurrentLeader()));
+                LOGGER.debug(String.format("    Detected dependencies in epoch %s: %s", thisNodeCurrentEpoch, thisNodeKnownDependencies));
             }
-
-            case WAITING -> {
-                // Already received prepare message
-                LOGGER.debug("    already WAITING");
-                // Do nothing -- ignore local timeout
-            }
-
-            case FOLLOWER -> {
-                // Already received prepare message and in-flight transaction has finished
-                // Do nothing -- ignore local timeout
-            }
-
-            case COORDINATOR -> {
-                // Illegal transition EXECUTING -> COORDINATOR: Must transition through WAITING
-                throw new IllegalStateException(String.format("Node state: %s", nodeState));
-            }
+            case WAITING -> LOGGER.debug("   No action taken. Already in WAITING state (must have received a prepare message).");
+            case FOLLOWER -> LOGGER.debug("   No action taken. Already in WAITING state (must have received a prepare message and in-flight transaction completed).");
+            case COORDINATOR -> throw new IllegalStateException(String.format("Can't transition from %s to %s within an epoch", WAITING, thisNodeState));
         }
     }
 }

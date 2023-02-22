@@ -4,6 +4,7 @@ import action.PrepareReceivedAckAction;
 import action.PrepareReceivedAction;
 import action.TransactionCompletionAction;
 import event.*;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
@@ -44,8 +45,23 @@ public class Main implements Callable<Integer> {
     @Option(names = {"-pd", "--propDistributedTransaction"}, description = "Proportion of distributed transactions")
     private double propDistributedTransactions = 0.1;
 
+    @Option(names = {"-ll", "--logLevel"}, description = "Log level")
+    private String logLevel = "info";
+
     @Override
     public Integer call() {
+        // logging
+        var level = switch (logLevel) {
+            case "info":
+                yield Level.INFO;
+            case "debug":
+                yield Level.DEBUG;
+            default:
+                throw new IllegalArgumentException("Invalid log level: " + logLevel);
+        };
+
+        Logger.getRootLogger().setLevel(level);
+
         // config
         var config = Config.getInstance();
         config.setClusterSize(cluster);
@@ -66,7 +82,7 @@ public class Main implements Callable<Integer> {
         // initial transaction events and timeouts
         var clusterSize = config.getClusterSize();
         for (int nodeId = 0; nodeId < clusterSize; nodeId++) {
-            var transactionEvent = new TransactionCompletionEvent(rand.generateShortTransactionServiceTime(), EventType.TRANSACTION_COMPLETED, nodeId);
+            var transactionEvent = new TransactionCompletionEvent(rand.generateShortTransactionServiceTime(), EventType.TRANSACTION_COMPLETED, nodeId, 0);
             eventList.addEvent(transactionEvent);
 
             var initEventTime = rand.generateNextEpochTimeout();
@@ -121,14 +137,13 @@ public class Main implements Callable<Integer> {
             switch (eventType) {
                 case TRANSACTION_COMPLETED ->
                         TransactionCompletionAction.execute((TransactionCompletionEvent) nextEvent, cluster, eventList, rand);
-                case NODE_EPOCH_TIMEOUT ->
-                        NodeTimeoutAction.timeout((NodeTimeoutEvent) nextEvent, cluster, rand, eventList);
+                case NODE_EPOCH_TIMEOUT -> NodeTimeoutAction.timeout((NodeTimeoutEvent) nextEvent, cluster);
                 case PREPARE_RECEIVED ->
                         PrepareReceivedAction.prepareReceived((PrepareReceivedEvent) nextEvent, cluster, rand, eventList);
                 case PREPARE_ACK_RECEIVED ->
                         PrepareReceivedAckAction.prepareAckReceived((PrepareAckReceivedEvent) nextEvent, cluster, rand, eventList);
                 case COMMIT_RECEIVED ->
-                        CommitReceivedAction.commitReceived((CommitReceivedEvent) nextEvent, cluster, config, eventList, rand, metrics);
+                        CommitReceivedAction.commitReceived((CommitReceivedEvent) nextEvent, cluster, eventList, rand);
             }
 
             LOGGER.debug("");
