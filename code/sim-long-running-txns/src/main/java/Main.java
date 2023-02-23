@@ -25,11 +25,11 @@ public class Main implements Callable<Integer> {
     @Option(names = {"-b", "--commit"}, description = "Average commit operation rate (ms)")
     private double commitOperationRate = 1.7;
 
-    @Option(names = {"-mu", "--shortTransaction"}, description = "Average short transaction service rate (ms)")
+    @Option(names = {"-st", "--shortTransactionRate"}, description = "Average short transaction service rate (ms)")
     private double shortTransactionServiceRate = 1;
 
-    @Option(names = {"-xi", "--longTransaction"}, description = "Average long transaction service rate (ms)")
-    private double longTransactionServiceRate = 1000;
+    @Option(names = {"-lt", "--longTransactionRate"}, description = "Average long transaction service rate (ms)")
+    private double longTransactionServiceRate = 10;
 
     @Option(names = {"-s", "--seed"}, description = "Fix seed")
     private String fixSeed = "false";
@@ -37,9 +37,8 @@ public class Main implements Callable<Integer> {
     @Option(names = {"-d", "--duration"}, description = "Simulation duration (secs)")
     private double timeLimit = 3600;
 
-    @Option(names = {"-m", "--mpt"}, description = "Proportion of long transactions")
+    @Option(names = {"-pl", "--propLongTransaction"}, description = "Proportion of long transactions")
     private double propLongTransactions = 0.1;
-
     @Override
     public Integer call() {
         // config
